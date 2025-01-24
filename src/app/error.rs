@@ -2,6 +2,8 @@
 
 use std::convert::From;
 
+pub type AppResult<T> = Result<T, AppError>;
+
 #[derive(Debug, Clone)]
 pub struct AppError {
     errors: Vec<ErrorType>
@@ -9,7 +11,7 @@ pub struct AppError {
 
 #[derive(Debug, Clone)]
 pub enum ErrorType {
-    IO(std::io::ErrorKind, String),
+    IO(tokio::io::ErrorKind, String),
     Specific(String),
     InvalidCommand(String)
 }
@@ -50,13 +52,13 @@ impl ErrorType {
     }
 }
 
-impl From<std::io::Error> for ErrorType {
+impl From<tokio::io::Error> for ErrorType {
     fn from(value: std::io::Error) -> Self {
         ErrorType::IO(value.kind(), value.to_string())
     }
 }
 
-impl From<std::io::Error> for AppError {
+impl From<tokio::io::Error> for AppError {
     fn from(value: std::io::Error) -> Self {
         AppError { errors: vec![value.into()] }
     }
