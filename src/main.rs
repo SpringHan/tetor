@@ -1,5 +1,9 @@
-mod app;
 mod ui;
+mod fs;
+mod app;
+mod error;
+mod config;
+mod command;
 
 use std::io::stderr;
 use std::error::Error;

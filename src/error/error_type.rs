@@ -37,6 +37,10 @@ impl AppError {
 }
 
 impl ErrorType {
+    pub fn pack(self) -> AppError {
+        AppError { errors: vec![self] }
+    }
+
     fn value(&self) -> String {
         match self {
             ErrorType::IO(ref error_kind, ref cause) => {
