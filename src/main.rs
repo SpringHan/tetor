@@ -5,9 +5,10 @@ mod error;
 mod config;
 mod command;
 
-use std::io::stderr;
+use std::{io::stderr, path::PathBuf};
 use std::error::Error;
 
+use fs::FileState;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend
@@ -31,6 +32,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     execute!(stderr(), LeaveAlternateScreen)?;
     disable_raw_mode()?;
-
     Ok(())
 }

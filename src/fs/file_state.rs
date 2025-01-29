@@ -1,31 +1,27 @@
 // File State
 
+use crate::ui::StyleConvert;
 use crate::error::{self, AppResult, AppError};
 
 use tokio::fs;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 use tokio::io::AsyncReadExt;
 
-use ratatui::style::{
-    Style as RStyle,
-    Color as RColor
-};
-
-use syntect::easy::HighlightLines;
-use syntect::parsing::SyntaxSet;
-use syntect::highlighting::{
-    ThemeSet,
-    Theme,
-    Style as HStyle,
-    Color as HColor
+use syntect::{
+    parsing::SyntaxSet,
+    easy::HighlightLines,
+    util::LinesWithEndings,
+    highlighting::{Theme, ThemeSet},
 };
 
 use std::sync::Arc;
 use std::path::{Path, PathBuf};
 
+type StylizedContent = Vec<(ratatui::style::Style, String)>;
+
 pub struct FileState {
     path: PathBuf,
-    content: Vec<(RStyle, String)>,
+    content: Arc<Mutex<StylizedContent>>,
     theme: Arc<Theme>,
     syntax_set: Arc<SyntaxSet>
 }
@@ -51,41 +47,54 @@ impl FileState {
         );
 
         read_result?;
-        parse_result?;
+        self.path = path.as_ref().to_path_buf();
 
         Ok(())
+    }
+
+    pub async fn reset(&mut self) {
+        self.path = PathBuf::default();
+        self.content.lock().await.clear();
     }
 
     async fn parse_content<P>(
         &self,
         path: P,
         mut rx: mpsc::UnboundedReceiver<String>
-    ) -> AppResult<()>
+    ) -> AppResult<StylizedContent>
     where P: AsRef<Path>
     {
-        while let Some(content) = rx.recv().await {
-            let find_syntax = self.syntax_set.find_syntax_by_path(
-                &path.as_ref().to_string_lossy()
-            );
-
-            if find_syntax.is_none() {
-                return Err(
-                    error::ErrorType::Specific(String::from(
-                        "Cannot find syntax for current file!"
-                    )).pack()
-                )
-            }
-
-            let syntax = find_syntax.unwrap();
+        let mut result: StylizedContent = Vec::new();
+        let find_syntax = self.syntax_set.find_syntax_for_file(
+            path.as_ref()
+        )?;
+        if find_syntax.is_none() {
+            return Err(
+                error::ErrorType::Specific(String::from(
+                    "Cannot find syntax for current file!"
+                )).pack()
+            )
         }
 
-        // TODO: Return parsed vec
-        Ok(())
-    }
+        let syntax = find_syntax.unwrap();
+        let mut h = HighlightLines::new(syntax, &self.theme);
 
-    pub fn reset(&mut self) {
-        self.path = PathBuf::default();
-        self.content.clear();
+        if let Some(content) = rx.recv().await {
+            for line in LinesWithEndings::from(&content) {
+                // TODO: Return no highlight content
+                let ranges = h.highlight_line(line, &self.syntax_set)
+                    .unwrap();
+
+                result.extend(
+                    ranges.into_iter()
+                        .map(|(style, _content)| (style.to_rstyle(), String::from(_content)))
+                        .collect::<StylizedContent>()
+                        .into_iter()
+                );
+            }
+        }
+
+        Ok(result)
     }
 }
 
@@ -93,11 +102,30 @@ impl Default for FileState {
     fn default() -> Self {
         FileState {
             path: PathBuf::default(),
-            content: Vec::new(),
+            content: Arc::new(Mutex::new(Vec::new())),
             theme: Arc::new(
                 ThemeSet::load_defaults().themes["base16-ocean.dark"].to_owned()
             ),
             syntax_set: Arc::new(SyntaxSet::load_defaults_newlines())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_test() {
+        let mut runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+            let mut file_state = FileState::default();
+            file_state.init(PathBuf::from("/home/spring/test.el")).await?;
+
+            println!("{:?}", file_state.content);
+            file_state.reset().await;
+
+            Ok::<(), AppError>(())
+        }).unwrap();
     }
 }
