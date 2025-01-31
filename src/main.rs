@@ -25,8 +25,7 @@ use crossterm::{
     }
 };
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     execute!(stderr(), EnterAlternateScreen)?;
 

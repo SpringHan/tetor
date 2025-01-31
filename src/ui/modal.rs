@@ -6,7 +6,7 @@ enum Type {
     Insert
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Modal {
     _type: Type
 }

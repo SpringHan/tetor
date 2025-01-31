@@ -1,8 +1,9 @@
 // File State
 
-use crate::ui::StyleConvert;
+use super::type_convert::StyleConvert;
 use crate::error::{self, AppResult, AppError};
 
+use ratatui::style::Style;
 use tokio::fs;
 use tokio::sync::{mpsc, Mutex};
 use tokio::io::AsyncReadExt;
@@ -17,13 +18,25 @@ use syntect::{
 use std::sync::Arc;
 use std::path::{Path, PathBuf};
 
+pub type LineVec = Vec<ContentLine>;
 type StylizedContent = Vec<(ratatui::style::Style, String)>;
 
+/// A structure storing single line of stylized content.
+#[derive(Debug)]
+pub struct ContentLine(StylizedContent);
+
+#[derive(Debug)]
 pub struct FileState {
     path: PathBuf,
-    content: Arc<Mutex<StylizedContent>>,
+    content: Arc<Mutex<LineVec>>,
     theme: Arc<Theme>,
     syntax_set: Arc<SyntaxSet>
+}
+
+impl ContentLine {
+    pub fn get_iter<'a>(&'a self) -> impl Iterator<Item = &'a (Style, String)> {
+        self.0.iter()
+    }
 }
 
 impl FileState {
@@ -49,6 +62,7 @@ impl FileState {
         read_result?;
         self.path = path.as_ref().to_path_buf();
 
+        // TODO: Return the parse result
         Ok(())
     }
 
@@ -61,10 +75,10 @@ impl FileState {
         &self,
         path: P,
         mut rx: mpsc::UnboundedReceiver<String>
-    ) -> AppResult<StylizedContent>
+    ) -> AppResult<LineVec>
     where P: AsRef<Path>
     {
-        let mut result: StylizedContent = Vec::new();
+        let mut result: LineVec = Vec::new();
         let find_syntax = self.syntax_set.find_syntax_for_file(
             path.as_ref()
         )?;
@@ -85,12 +99,11 @@ impl FileState {
                 let ranges = h.highlight_line(line, &self.syntax_set)
                     .unwrap();
 
-                result.extend(
+                result.push(ContentLine(
                     ranges.into_iter()
                         .map(|(style, _content)| (style.to_rstyle(), String::from(_content)))
                         .collect::<StylizedContent>()
-                        .into_iter()
-                );
+                ));
             }
         }
 

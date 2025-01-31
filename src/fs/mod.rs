@@ -1,3 +1,4 @@
 mod file_state;
+mod type_convert;
 
-pub use file_state::FileState;
+pub use file_state::{FileState, LineVec, ContentLine};
