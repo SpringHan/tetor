@@ -4,6 +4,8 @@ use crate::app::App;
 
 use ratatui::{layout::{Constraint, Direction, Layout}, Frame};
 
+use super::Editor;
+
 pub fn main_frame(frame: &mut Frame, app: &mut App) {
     // let main_layout = Layout::default()
     //     .direction(Direction::Horizontal)
@@ -20,4 +22,12 @@ pub fn main_frame(frame: &mut Frame, app: &mut App) {
     //         Constraint::Percentage(95)
     //     ])
     //     .split(main_layout[0]);
+
+    let editor = Editor::new(app.get_content());
+
+    frame.render_stateful_widget(
+        editor,
+        frame.size(),
+        &mut app.editor_state
+    );
 }

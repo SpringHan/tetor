@@ -4,8 +4,8 @@ use super::type_convert::StyleConvert;
 use crate::error::{self, AppResult, AppError};
 
 use ratatui::style::Style;
-use tokio::fs;
-use tokio::sync::{mpsc, Mutex};
+use tokio::{fs, sync::Mutex};
+use tokio::sync::mpsc;
 use tokio::io::AsyncReadExt;
 
 use syntect::{
@@ -61,15 +61,19 @@ impl FileState {
 
         read_result?;
         self.path = path.as_ref().to_path_buf();
+        *self.content.lock().await = parse_result?;
 
-        // TODO: Return the parse result
         Ok(())
     }
 
-    pub async fn reset(&mut self) {
-        self.path = PathBuf::default();
-        self.content.lock().await.clear();
+    pub fn content(&self) -> Arc<Mutex<LineVec>> {
+        Arc::clone(&self.content)
     }
+
+    // TODO: Maybe the function is useless
+    // pub async fn reset(&mut self) {
+    //     self.path = PathBuf::default();
+    // }
 
     async fn parse_content<P>(
         &self,
@@ -130,13 +134,13 @@ mod tests {
 
     #[test]
     fn parse_test() {
-        let mut runtime = tokio::runtime::Runtime::new().unwrap();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
             let mut file_state = FileState::default();
-            file_state.init(PathBuf::from("/home/spring/test.el")).await?;
+            let result = file_state.init(PathBuf::from("/home/spring/test.el")).await?;
 
-            println!("{:?}", file_state.content);
-            file_state.reset().await;
+            println!("{:?}", result);
+            // file_state.reset().await;
 
             Ok::<(), AppError>(())
         }).unwrap();

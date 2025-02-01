@@ -6,7 +6,7 @@ use ratatui::{
 };
 use tokio::sync::Mutex;
 
-use std::{mem::swap, sync::Arc};
+use std::{borrow::BorrowMut, mem::swap, sync::Arc};
 
 use crate::fs::{ContentLine, LineVec};
 
@@ -19,16 +19,14 @@ pub struct EditorState {
     modal: Modal
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Editor {
     lines: Arc<Mutex<LineVec>>,
 }
 
 impl Editor {
-    pub fn new(content: LineVec) -> Self {
-        Editor {
-            lines: Arc::new(Mutex::new(content)),
-        }
+    pub fn new(content: Arc<Mutex<LineVec>>) -> Self {
+        Editor { lines: content }
     }
 }
 

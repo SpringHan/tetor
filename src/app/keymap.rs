@@ -6,3 +6,9 @@ use std::collections::HashMap;
 pub struct Keymap {
     // maps: HashMap<char, >
 }
+
+impl Keymap {
+    pub fn init() -> Self {
+        Keymap { }
+    }
+}

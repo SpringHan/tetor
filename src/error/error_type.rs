@@ -4,7 +4,7 @@ use std::convert::From;
 
 pub type AppResult<T> = Result<T, AppError>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AppError {
     errors: Vec<ErrorType>
 }
@@ -17,10 +17,6 @@ pub enum ErrorType {
 }
 
 impl AppError {
-    pub fn new() -> Self {
-        AppError { errors: Vec::new() }
-    }
-
     pub fn add_error(&mut self, error: ErrorType) {
         self.errors.push(error);
     }
