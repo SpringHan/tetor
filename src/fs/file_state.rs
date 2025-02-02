@@ -1,9 +1,9 @@
 // File State
 
-use super::type_convert::StyleConvert;
+use super::type_convert::{ColorConvert, StyleConvert};
 use crate::error::{self, AppResult, AppError};
 
-use ratatui::style::Style;
+use ratatui::style::{Color, Style};
 use tokio::{fs, sync::Mutex};
 use tokio::sync::mpsc;
 use tokio::io::AsyncReadExt;
@@ -28,9 +28,10 @@ pub struct ContentLine(StylizedContent);
 #[derive(Debug)]
 pub struct FileState {
     path: PathBuf,
-    content: Arc<Mutex<LineVec>>,
+    pub content: Arc<Mutex<LineVec>>,
     theme: Arc<Theme>,
-    syntax_set: Arc<SyntaxSet>
+    syntax_set: Arc<SyntaxSet>,
+    pub background_color: Color
 }
 
 impl ContentLine {
@@ -61,13 +62,9 @@ impl FileState {
 
         read_result?;
         self.path = path.as_ref().to_path_buf();
-        *self.content.lock().await = parse_result?;
+        (*self.content.lock().await, self.background_color) = parse_result?;
 
         Ok(())
-    }
-
-    pub fn content(&self) -> Arc<Mutex<LineVec>> {
-        Arc::clone(&self.content)
     }
 
     // TODO: Maybe the function is useless
@@ -79,10 +76,9 @@ impl FileState {
         &self,
         path: P,
         mut rx: mpsc::UnboundedReceiver<String>
-    ) -> AppResult<LineVec>
+    ) -> AppResult<(LineVec, Color)>
     where P: AsRef<Path>
     {
-        let mut result: LineVec = Vec::new();
         let find_syntax = self.syntax_set.find_syntax_for_file(
             path.as_ref()
         )?;
@@ -94,6 +90,10 @@ impl FileState {
             )
         }
 
+        let mut result: LineVec = Vec::new();
+        let mut get_bg = false;
+        let mut background_color: Color = Color::default();
+
         let syntax = find_syntax.unwrap();
         let mut h = HighlightLines::new(syntax, &self.theme);
 
@@ -103,6 +103,16 @@ impl FileState {
                 let ranges = h.highlight_line(line, &self.syntax_set)
                     .unwrap();
 
+                if !get_bg {
+                    get_bg = true;
+
+                    background_color = ranges.get(0)
+                        .expect("Error code 1 at parse_content in file_state.rs")
+                        .0
+                        .background
+                        .to_rcolor();
+                }
+
                 result.push(ContentLine(
                     ranges.into_iter()
                         .map(|(style, _content)| (style.to_rstyle(), String::from(_content)))
@@ -111,7 +121,7 @@ impl FileState {
             }
         }
 
-        Ok(result)
+        Ok((result, background_color))
     }
 }
 
@@ -123,7 +133,8 @@ impl Default for FileState {
             theme: Arc::new(
                 ThemeSet::load_defaults().themes["base16-ocean.dark"].to_owned()
             ),
-            syntax_set: Arc::new(SyntaxSet::load_defaults_newlines())
+            syntax_set: Arc::new(SyntaxSet::load_defaults_newlines()),
+            background_color: Color::default()
         }
     }
 }
@@ -137,9 +148,9 @@ mod tests {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
             let mut file_state = FileState::default();
-            let result = file_state.init(PathBuf::from("/home/spring/test.el")).await?;
+            file_state.init(PathBuf::from("/home/spring/test.el")).await?;
 
-            println!("{:?}", result);
+            println!("{:#?}", file_state.content);
             // file_state.reset().await;
 
             Ok::<(), AppError>(())

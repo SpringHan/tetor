@@ -23,8 +23,7 @@ pub trait ColorConvert {
 impl StyleConvert for HStyle {
     fn to_rstyle(self) -> RStyle {
         let mut temp = RStyle::default()
-            .fg(self.foreground.to_rcolor())
-            .bg(self.background.to_rcolor());
+            .fg(self.foreground.to_rcolor());
 
         if self.font_style.contains(FontStyle::BOLD) {
             temp = temp.add_modifier(Modifier::BOLD);

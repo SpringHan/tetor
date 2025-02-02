@@ -1,20 +1,19 @@
 // Editord
 
 use ratatui::{
-    text::Line,
-    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget}
+    style::Color, text::{Line, Span}, widgets::{Block, Borders, Paragraph, StatefulWidget, Widget}
 };
 use tokio::sync::Mutex;
 
-use std::{borrow::BorrowMut, mem::swap, sync::Arc};
+use std::sync::Arc;
 
-use crate::fs::{ContentLine, LineVec};
+use crate::fs::LineVec;
 
 use super::modal::Modal;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct EditorState {
-    cursor_pos: (usize, usize),
+    cursor_pos: (u16, u16),
     scroll_offset: usize,
     modal: Modal
 }
@@ -22,11 +21,22 @@ pub struct EditorState {
 #[derive(Debug, Default)]
 pub struct Editor {
     lines: Arc<Mutex<LineVec>>,
+    background_color: Color
+}
+
+impl EditorState {
+    // TODO: Modify relative function
+    pub fn scroll_down(&mut self, line: usize) {
+        self.scroll_offset += line;
+    }
 }
 
 impl Editor {
-    pub fn new(content: Arc<Mutex<LineVec>>) -> Self {
-        Editor { lines: content }
+    pub fn new(content: Arc<Mutex<LineVec>>, bg: Color) -> Self {
+        Editor {
+            lines: content,
+            background_color: bg
+        }
     }
 }
 
@@ -47,9 +57,11 @@ impl StatefulWidget for Editor {
             .iter()
             .take(area.height as usize - 2)
             .fold(Vec::new(), |mut acc, line| {
-                acc.extend(line.get_iter()
-                    .map(|(style, content)| Line::styled(content.to_owned(), *style))
-                );
+                acc.push(Line::from(
+                    line.get_iter()
+                        .map(|(style, content)| Span::styled(content.to_owned(), *style))
+                        .collect::<Vec<_>>()
+                ));
                 acc
             });
 
@@ -58,10 +70,12 @@ impl StatefulWidget for Editor {
             .render(area, buf);
 
         // Render cursor
-        let (row, col) = state.cursor_pos;
-        let x = area.x + col as u16 + 1;
-        let y = area.y + (row - state.scroll_offset) as u16 + 1;
-        let point = buf.get_mut(x, y);
-        swap(&mut point.fg, &mut point.bg);
+        let (_x, _y) = state.cursor_pos;
+        // let point = buf.get_mut(1 + area.x, 1);
+
+        let point = buf.get_mut(_x + area.x, _y);
+
+        point.bg = Color::White;
+        point.fg = self.background_color;
     }
 }
