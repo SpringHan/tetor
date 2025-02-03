@@ -46,4 +46,8 @@ impl App {
     pub fn get_bg(&self) -> ratatui::style::Color {
         self.file_state.background_color
     }
+
+    pub fn get_modal(&mut self) -> &mut crate::ui::Modal {
+        &mut self.editor_state.modal
+    }
 }

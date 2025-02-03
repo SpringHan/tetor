@@ -15,7 +15,7 @@ use super::modal::Modal;
 pub struct EditorState {
     cursor_pos: (u16, u16),
     scroll_offset: usize,
-    modal: Modal
+    pub modal: Modal
 }
 
 #[derive(Debug, Default)]

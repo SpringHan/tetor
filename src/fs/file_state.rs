@@ -1,7 +1,7 @@
 // File State
 
 use super::type_convert::{ColorConvert, StyleConvert};
-use crate::error::{self, AppResult, AppError};
+use crate::error::{self, AppError, AppResult, ErrorType};
 
 use ratatui::style::{Color, Style};
 use tokio::{fs, sync::Mutex};
@@ -22,21 +22,31 @@ pub type LineVec = Vec<ContentLine>;
 type StylizedContent = Vec<(ratatui::style::Style, String)>;
 
 /// A structure storing single line of stylized content.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ContentLine(StylizedContent);
 
 #[derive(Debug)]
 pub struct FileState {
-    path: PathBuf,
+    pub background_color: Color,
     pub content: Arc<Mutex<LineVec>>,
-    theme: Arc<Theme>,
-    syntax_set: Arc<SyntaxSet>,
-    pub background_color: Color
+
+    path: PathBuf,
+    theme: Theme,
+    syntax_set: SyntaxSet
 }
 
 impl ContentLine {
     pub fn get_iter<'a>(&'a self) -> impl Iterator<Item = &'a (Style, String)> {
         self.0.iter()
+    }
+}
+
+impl Into<String> for ContentLine {
+    fn into(self) -> String {
+        self.0.into_iter()
+            .map(|(_, span)| span)
+            .collect::<Vec<_>>()
+            .join("")
     }
 }
 
@@ -67,12 +77,7 @@ impl FileState {
         Ok(())
     }
 
-    // TODO: Maybe the function is useless
-    // pub async fn reset(&mut self) {
-    //     self.path = PathBuf::default();
-    // }
-
-    async fn parse_content<P>(
+    async fn parse_content<'a, P>(
         &self,
         path: P,
         mut rx: mpsc::UnboundedReceiver<String>
@@ -123,6 +128,66 @@ impl FileState {
 
         Ok((result, background_color))
     }
+
+    /// Get lines from file content with range.
+    pub async fn get_lines(&self, from: u16, to: u16) -> AppResult<Vec<String>> {
+        let (from, to) = (from as usize, to as usize);
+        let file_lines = self.content.lock().await;
+
+        if from >= file_lines.len() || to >= file_lines.len() || from > to {
+            return Err(
+                ErrorType::Specific(
+                    String::from("Attempt to get lines with wrong range.")
+                ).pack()
+            )
+        }
+
+        Ok(
+            file_lines[from..=to].to_owned()
+                .into_iter()
+                .map(|line| line.into())
+                .collect::<Vec<String>>()
+        )
+    }
+
+    /// Modify lines with modified lines & range.
+    /// Update its syntax highlight in the meanwhile.
+    pub async fn modify_lines(
+        &self,
+        from: u16,
+        to: u16,
+        lines: Vec<String>
+    ) -> AppResult<()>
+    {
+        let (from, to) = (from as usize, to as usize);
+        let mut file_lines = self.content.lock().await;
+
+        if from >= file_lines.len() || to >= file_lines.len() ||
+            from > to
+        {
+            return Err(
+                ErrorType::Specific(
+                    String::from("Attempt to modify lines with wrong range.")
+                ).pack()
+            )
+        }
+
+        let (tx, rx) = mpsc::unbounded_channel();
+
+        tx.send(lines.join(""))
+            .expect("Error code 2 at modify_lines in file_state.rs!");
+
+        let highlighted_lines = self.parse_content(
+            self.path.to_owned(),
+            rx
+        ).await?.0;
+
+        for i in from..=to {
+            file_lines[i] = highlighted_lines[i - from].to_owned();
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for FileState {
@@ -130,10 +195,8 @@ impl Default for FileState {
         FileState {
             path: PathBuf::default(),
             content: Arc::new(Mutex::new(Vec::new())),
-            theme: Arc::new(
-                ThemeSet::load_defaults().themes["base16-ocean.dark"].to_owned()
-            ),
-            syntax_set: Arc::new(SyntaxSet::load_defaults_newlines()),
+            theme: ThemeSet::load_defaults().themes["base16-ocean.dark"].to_owned(),
+            syntax_set: SyntaxSet::load_defaults_newlines(),
             background_color: Color::default()
         }
     }
