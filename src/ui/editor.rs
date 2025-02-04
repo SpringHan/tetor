@@ -29,6 +29,19 @@ impl EditorState {
     pub fn scroll_down(&mut self, line: usize) {
         self.scroll_offset += line;
     }
+
+    pub fn cursor(&self) -> (u16, u16) {
+        self.cursor_pos
+    }
+
+    pub fn cursor_x(&mut self) -> &mut u16 {
+        &mut self.cursor_pos.0
+    }
+
+    pub fn cursor_y(&mut self) -> &mut u16 {
+        &mut self.cursor_pos.1
+    }
+
 }
 
 impl Editor {

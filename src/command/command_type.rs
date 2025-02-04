@@ -2,8 +2,15 @@
 
 use crate::error::AppResult;
 
-#[derive(Debug, Clone, Copy)]
-enum MotionDirection {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum CursorMoveType {
+    Num(u16),
+    Beg,
+    End
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum MotionDirection {
     Up,
     Down,
     Left,

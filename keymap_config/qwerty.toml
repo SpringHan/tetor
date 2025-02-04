@@ -1,0 +1,31 @@
+[config]
+keymap = [
+       # Normal -> Insert
+       { key = "a", run = "change_modal insert 1" },
+       { key = "A", run = "change_modal insert $" },
+       { key = "i", run = "change_modal insert 0" },
+       { key = "I", run = "change_modal insert ^" },
+
+       # Motion
+       { key = "h", run = "move_cursor left 1" },
+       { key = "j", run = "move_cursor down 1" },
+       { key = "k", run = "move_cursor up 1" },
+       { key = "l", run = "move_cursor right 1" },
+       { key = "H", run = "move_cursor left 5" },
+       { key = "J", run = "move_cursor down 5" },
+       { key = "K", run = "move_cursor up 5" },
+       { key = "L", run = "move_cursor right 5" },
+       { key = "g", run = "goto buffer ^" },
+       { key = "G", run = "goto buffer $" },
+       { key = "b", run = "goto line ^"}
+       { key = "B", run = "goto line $"}
+       { key = "v", run = "page_scroll 1"}
+       { key = "V", run = "page_scroll -1"}
+
+       # Modification
+       { key = "d", run = "delete" },
+       { key = "x", run = "delete_char" },
+       { key = "c", run = "change" },
+       { key = "m", run = "mark" },
+       { key = "q", run = "kmacro" },
+]

@@ -12,11 +12,11 @@ use std::{path::{Path, PathBuf}, sync::Arc};
 
 #[derive(Debug)]
 pub struct App {
-    file_state: FileState,
-
-    keymap: keymap::Keymap,
+    pub file_state: FileState,
 
     pub editor_state: EditorState,
+
+    keymap: keymap::Keymap,
 
     app_errors: AppError,
 }
@@ -40,7 +40,7 @@ impl App {
     }
 
     pub fn get_content(&self) -> Arc<Mutex<LineVec>> {
-        Arc::clone(&self.file_state.content)
+        Arc::clone(self.file_state.content_ref())
     }
 
     pub fn get_bg(&self) -> ratatui::style::Color {

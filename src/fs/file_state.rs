@@ -28,7 +28,7 @@ pub struct ContentLine(StylizedContent);
 #[derive(Debug)]
 pub struct FileState {
     pub background_color: Color,
-    pub content: Arc<Mutex<LineVec>>,
+    content: Arc<Mutex<LineVec>>,
 
     path: PathBuf,
     theme: Theme,
@@ -51,6 +51,10 @@ impl Into<String> for ContentLine {
 }
 
 impl FileState {
+    pub fn content_ref(&self) -> &Arc<Mutex<LineVec>> {
+        &self.content
+    }
+
     pub async fn init<P: AsRef<Path>>(&mut self, path: P) -> AppResult<()> {
         let mut file = fs::File::open(path.as_ref().to_owned()).await?;
         let (tx, rx) = mpsc::unbounded_channel();
