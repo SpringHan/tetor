@@ -1,10 +1,10 @@
 // Basic
 
-use crate::{app::App, error::{AppError, AppResult}, ui::ModalType};
+use crate::{app::App, error::AppResult, ui::ModalType};
 
-use super::command_type::{CursorMoveType, MotionDirection};
+use super::command_type::CursorMoveType;
 
-pub(super) async fn change_modal(
+pub async fn change_modal(
     app: &mut App,
     modal: ModalType,
     cursor_move: CursorMoveType
@@ -16,52 +16,59 @@ pub(super) async fn change_modal(
         app.get_modal().switch_insert();
     }
 
-    if cursor_move == CursorMoveType::Num(0) {
+    move_cursor(app, true, cursor_move).await?;
+
+    Ok(())
+}
+
+pub async fn move_cursor(
+    app: &mut App,
+    within_line: bool,
+    cursor_move: CursorMoveType
+) -> AppResult<()>
+{
+    *app.editor_state.cursor_mut() = cursor_move.after_move(
+        within_line,
+        app.editor_state.cursor(),
+        &mut app.file_state
+    ).await?;
+
+    Ok(())
+}
+
+pub async fn page_scroll(app: &mut App, scroll: isize) -> AppResult<()> {
+    let editor_state = &mut app.editor_state;
+    let scroll_after = (editor_state.offset() as isize) + (scroll * editor_state.height());
+
+    if scroll_after < 0 {
+        *editor_state.offset_mut() = 0;
+        editor_state.scrolling = true;
+
         return Ok(())
     }
 
-    let cursor_pos = app.editor_state.cursor();
-    let cursor_x = app.editor_state.cursor_x();
-    let line_length = app.file_state.get_lines(cursor_pos.1, cursor_pos.1)
-        .await?[0]
-        .len();
 
-    match cursor_move {
-        CursorMoveType::Num(i) => {
-            if cursor_pos.0 + i >= line_length as u16 {
-                *cursor_x = line_length as u16;
+    let scroll_after = scroll_after as usize;
 
-                return Ok(())
-            }
+    let file_length = app.file_state.content_ref().lock().await.len() as isize;
+    let max_offset = file_length - editor_state.height();
 
-            *cursor_x += i;
-        },
-        CursorMoveType::Beg => *cursor_x += 0,
-        CursorMoveType::End => *cursor_x = line_length as u16,
+    if max_offset < 0 {
+        return Ok(())
     }
 
+    *editor_state.offset_mut() = if scroll_after >= max_offset as usize {
+        max_offset as usize
+    } else {
+        scroll_after
+    };
+
+    app.editor_state.scrolling = true;
+    
     Ok(())
 }
 
-pub(super) async fn move_cursor(
-    app: &mut App,
-    direction: MotionDirection,
-    cursor_move: CursorMoveType
-) -> AppResult<()>
-{
-    Ok(())
-}
-
-pub(super) async fn goto(
-    app: &mut App,
-    move_in_buffer: bool,
-    cursor_move: CursorMoveType
-) -> AppResult<()>
-{
-    Ok(())
-}
-
-pub(super) async fn insert_char(app: &mut App, key: char) -> AppResult<()> {
+pub async fn insert_char(app: &mut App, key: char) -> AppResult<()> {
     let cursor_pos = app.editor_state.cursor();
     let mut edit_line = app.file_state.get_lines(
         cursor_pos.1,
@@ -75,6 +82,8 @@ pub(super) async fn insert_char(app: &mut App, key: char) -> AppResult<()> {
         cursor_pos.1,
         edit_line
     ).await?;
+
+    app.editor_state.cursor_mut().0 += 1;
 
     Ok(())
 }

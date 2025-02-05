@@ -33,14 +33,10 @@ impl App {
 
     // TODO: Modify to add file path as a parameter
     pub async fn init_file(&mut self) -> AppResult<()> {
-        // self.file_state.init("/home/spring/Rust/hire/src/ui.rs").await?;
-        self.file_state.init("/home/spring/test.el").await?;
+        self.file_state.init("/home/spring/Rust/hire/src/ui.rs").await?;
+        // self.file_state.init("/home/spring/test.el").await?;
 
         Ok(())
-    }
-
-    pub fn get_content(&self) -> Arc<Mutex<LineVec>> {
-        Arc::clone(self.file_state.content_ref())
     }
 
     pub fn get_bg(&self) -> ratatui::style::Color {

@@ -53,10 +53,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     if key.code == KeyCode::Char('q') {
                         break;
                     }
-
-                    if key.code == KeyCode::Down {
-                        app.editor_state.scroll_down(1);
-                    }
                 }
             }
         }

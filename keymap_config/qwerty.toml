@@ -7,18 +7,18 @@ keymap = [
        { key = "I", run = "change_modal insert ^" },
 
        # Motion
-       { key = "h", run = "move_cursor left 1" },
-       { key = "j", run = "move_cursor down 1" },
-       { key = "k", run = "move_cursor up 1" },
-       { key = "l", run = "move_cursor right 1" },
-       { key = "H", run = "move_cursor left 5" },
-       { key = "J", run = "move_cursor down 5" },
-       { key = "K", run = "move_cursor up 5" },
-       { key = "L", run = "move_cursor right 5" },
-       { key = "g", run = "goto buffer ^" },
-       { key = "G", run = "goto buffer $" },
-       { key = "b", run = "goto line ^"}
-       { key = "B", run = "goto line $"}
+       { key = "h", run = "move_cursor line -1" },
+       { key = "j", run = "move_cursor buffer 1" },
+       { key = "k", run = "move_cursor buffer -1" },
+       { key = "l", run = "move_cursor line 1" },
+       { key = "H", run = "move_cursor line -5" },
+       { key = "J", run = "move_cursor buffer 5" },
+       { key = "K", run = "move_cursor buffer -5" },
+       { key = "L", run = "move_cursor line 5" },
+       { key = "g", run = "move_cursor buffer ^" },
+       { key = "G", run = "move_cursor buffer $" },
+       { key = "b", run = "move_cursor line ^"}
+       { key = "B", run = "move_cursor line $"}
        { key = "v", run = "page_scroll 1"}
        { key = "V", run = "page_scroll -1"}
 
