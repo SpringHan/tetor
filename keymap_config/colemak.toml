@@ -1,0 +1,39 @@
+[config]
+keymap = [
+       # Normal -> Insert
+       { key = "a", run = "change_modal insert 1" },
+       { key = "A", run = "change_modal insert $" },
+       { key = "h", run = "change_modal insert 0" },
+       { key = "H", run = "change_modal insert ^" },
+
+       # Motion
+       { key = "n", run = "move_cursor line -1" },
+       { key = "e", run = "move_cursor buffer 1" },
+       { key = "u", run = "move_cursor buffer -1" },
+       { key = "i", run = "move_cursor line 1" },
+       { key = "N", run = "move_cursor line -5" },
+       { key = "E", run = "move_cursor buffer 5" },
+       { key = "U", run = "move_cursor buffer -5" },
+       { key = "I", run = "move_cursor line 5" },
+       { key = "g", run = "move_cursor buffer ^" },
+       { key = "G", run = "move_cursor buffer $" },
+       { key = "b", run = "move_cursor line ^" },
+       { key = "B", run = "move_cursor line $" },
+       { key = "v", run = "page_scroll 1" },
+       { key = "V", run = "page_scroll -1" },
+       { key = "/", run = "search" },
+       { key = "k", run = "search_jump next" },
+       { key = "K", run = "search_jump prev" },
+
+       # Modification
+       { key = "d", run = "delete" },
+       { key = "x", run = "delete_char" },
+       { key = "c", run = "change" },
+       { key = "m", run = "mark" },
+       { key = "r", run = "replace_char" },
+       { key = "o", run = "newline down" },
+       { key = "O", run = "newline up" },
+
+       { key = "S", run = "save" },
+       { key = "Q", run = "quit" }
+]

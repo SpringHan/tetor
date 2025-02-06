@@ -17,15 +17,23 @@ keymap = [
        { key = "L", run = "move_cursor line 5" },
        { key = "g", run = "move_cursor buffer ^" },
        { key = "G", run = "move_cursor buffer $" },
-       { key = "b", run = "move_cursor line ^"}
-       { key = "B", run = "move_cursor line $"}
-       { key = "v", run = "page_scroll 1"}
-       { key = "V", run = "page_scroll -1"}
+       { key = "b", run = "move_cursor line ^" },
+       { key = "B", run = "move_cursor line $" },
+       { key = "v", run = "page_scroll 1" },
+       { key = "V", run = "page_scroll -1" },
+       { key = "/", run = "search" },
+       { key = "n", run = "search_jump next" },
+       { key = "N", run = "search_jump prev" },
 
        # Modification
        { key = "d", run = "delete" },
        { key = "x", run = "delete_char" },
        { key = "c", run = "change" },
        { key = "m", run = "mark" },
-       { key = "q", run = "kmacro" },
+       { key = "r", run = "replace_char" },
+       { key = "o", run = "newline down" },
+       { key = "O", run = "newline up" },
+
+       { key = "S", run = "save" },
+       { key = "Q", run = "quit" }
 ]

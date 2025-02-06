@@ -6,7 +6,7 @@ mod handle_input;
 pub use handle_input::handle_input;
 use tokio::sync::Mutex;
 
-use crate::{error::{AppError, AppResult}, fs::{FileState, LineVec}, ui::{Editor, EditorState}};
+use crate::{command::CommandPrior, error::{AppError, AppResult}, fs::{FileState, LineVec}, ui::{Editor, EditorState}};
 
 use std::{path::{Path, PathBuf}, sync::Arc};
 
@@ -15,6 +15,8 @@ pub struct App {
     pub file_state: FileState,
 
     pub editor_state: EditorState,
+
+    pub prior_command: CommandPrior,
 
     keymap: keymap::Keymap,
 
@@ -28,6 +30,7 @@ impl App {
             keymap: keymap::Keymap::init(),
             editor_state: EditorState::default(),
             app_errors: AppError::default(),
+            prior_command: CommandPrior::None
         }
     }
 

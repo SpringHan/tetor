@@ -135,10 +135,10 @@ impl FileState {
 
     /// Get lines from file content with range.
     pub async fn get_lines(&self, from: u16, to: u16) -> AppResult<Vec<String>> {
-        let (from, to) = (from as usize, to as usize);
+        let (from, mut to) = (from as usize, to as usize);
         let file_lines = self.content.lock().await;
 
-        if from >= file_lines.len() || to >= file_lines.len() || from > to {
+        if from > to || to >= file_lines.len() {
             return Err(
                 ErrorType::Specific(
                     String::from("Attempt to get lines with wrong range.")
@@ -166,9 +166,7 @@ impl FileState {
         let (from, to) = (from as usize, to as usize);
         let mut file_lines = self.content.lock().await;
 
-        if from >= file_lines.len() || to >= file_lines.len() ||
-            from > to
-        {
+        if from > to || to >= file_lines.len() {
             return Err(
                 ErrorType::Specific(
                     String::from("Attempt to modify lines with wrong range.")
@@ -176,6 +174,16 @@ impl FileState {
             )
         }
 
+        if lines.is_empty() {
+            for i in from..=to {
+                file_lines.remove(i);
+            }
+
+            return Ok(())
+        }
+
+
+        // Get highlighted lines
         let (tx, rx) = mpsc::unbounded_channel();
 
         tx.send(lines.join(""))
@@ -186,7 +194,18 @@ impl FileState {
             rx
         ).await?.0;
 
+        // Replace the original lines
         for i in from..=to {
+            if i >= file_lines.len() {
+                file_lines.push(highlighted_lines[i - from].to_owned());
+                continue;
+            }
+
+            if i >= highlighted_lines.len() {
+                file_lines.remove(i);
+                continue;
+            }
+
             file_lines[i] = highlighted_lines[i - from].to_owned();
         }
 

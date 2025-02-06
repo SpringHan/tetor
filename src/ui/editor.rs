@@ -17,6 +17,7 @@ use super::modal::Modal;
 #[derive(Debug, Clone, Copy)]
 pub struct EditorState {
     cursor_pos: (u16, u16),
+    mark_point: Option<(u16, u16)>,
 
     scroll_offset: usize,
 
@@ -36,8 +37,11 @@ impl Default for EditorState {
     fn default() -> Self {
         Self {
             cursor_pos: (0, 0),
+            mark_point: None,
+
             scrolling: false,
             scroll_offset: 0,
+
             editor_height: None,
             modal: Modal::default(),
         }
@@ -63,6 +67,14 @@ impl EditorState {
 
     pub fn height(&self) -> isize {
         self.editor_height.expect("Error code 1 at height in editor.rs!")
+    }
+
+    pub fn mark(&self) -> Option<(u16, u16)> {
+        self.mark_point
+    }
+
+    pub fn mark_mut(&mut self) -> &mut Option<(u16, u16)> {
+        &mut self.mark_point
     }
 }
 

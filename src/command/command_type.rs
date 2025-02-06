@@ -3,13 +3,22 @@
 use crate::error::AppResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum CursorMoveType {
+pub enum CursorMoveType {
     Num(i16),
     Beg,
     End
 }
 
-pub struct ModifyCommand {
+// TODO: Make this value to None after running relevant prior command
+/// The prior command to be executed.
+/// When the value of this is not None, apply current key event for current prior command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandPrior {
+    Mark,
+    Delete,
+    Change,
+    Kmacro,
+    None
 }
 
 #[derive(Debug, Clone)]
@@ -36,10 +45,10 @@ impl CursorMoveType {
         let mut after = before;
 
         if within_line {
-            length = file_state.get_lines(before.1, before.1).await?[0].len();
+            length = file_state.get_lines(before.1, before.1).await?[0].len() - 1;
             modify_ref = &mut after.0;
         } else {
-            length = file_state.content_ref().lock().await.len();
+            length = file_state.content_ref().lock().await.len() - 1;
             modify_ref = &mut after.1;
         }
 
