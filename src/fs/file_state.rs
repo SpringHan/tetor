@@ -6,7 +6,7 @@ use crate::error::{self, AppError, AppResult, ErrorType};
 use ratatui::style::{Color, Style};
 use tokio::{fs, sync::Mutex};
 use tokio::sync::mpsc;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use syntect::{
     parsing::SyntaxSet,
@@ -29,6 +29,7 @@ pub struct ContentLine(StylizedContent);
 pub struct FileState {
     pub background_color: Color,
     content: Arc<Mutex<LineVec>>,
+    file_modified: Arc<Mutex<bool>>,
 
     path: PathBuf,
     theme: Theme,
@@ -36,6 +37,10 @@ pub struct FileState {
 }
 
 impl ContentLine {
+    pub fn new(line: StylizedContent) -> Self {
+        ContentLine(line)
+    }
+
     pub fn get_iter<'a>(&'a self) -> impl Iterator<Item = &'a (Style, String)> {
         self.0.iter()
     }
@@ -51,6 +56,14 @@ impl Into<String> for ContentLine {
 }
 
 impl FileState {
+    pub async fn file_modify(&self) {
+        *self.file_modified.lock().await = true;
+    }
+
+    pub async fn not_save(&self) -> bool {
+        *self.file_modified.lock().await
+    }
+
     pub fn content_ref(&self) -> &Arc<Mutex<LineVec>> {
         &self.content
     }
@@ -157,7 +170,7 @@ impl FileState {
     /// Modify lines with modified lines & range.
     /// Update its syntax highlight in the meanwhile.
     pub async fn modify_lines(
-        &self,
+        &mut self,
         from: u16,
         to: u16,
         lines: Vec<String>
@@ -194,7 +207,7 @@ impl FileState {
             rx
         ).await?.0;
 
-        // Replace the original lines
+        // Simply replace the original lines
         for i in from..=to {
             if i >= file_lines.len() {
                 file_lines.push(highlighted_lines[i - from].to_owned());
@@ -209,6 +222,44 @@ impl FileState {
             file_lines[i] = highlighted_lines[i - from].to_owned();
         }
 
+        self.file_modify().await;
+
+        Ok(())
+    }
+
+    pub async fn save_content(&mut self) -> AppResult<()> {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .append(true)
+            .open(self.path.to_owned()).await?;
+
+        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+
+        let destyle_task = async {
+            for line in self.content.lock().await.iter() {
+                tx.send(line.to_owned().into())
+                    .expect("Error code 3 at save_content in file_state.rs!");
+            }
+        };
+
+        let save_task = async {
+            while let Some(line) = rx.recv().await {
+                file.write(line.as_bytes()).await?;
+            }
+
+            Ok::<(), tokio::io::Error>(())
+        };
+
+        let (_, save_result) = tokio::join!(
+            destyle_task,
+            save_task
+        );
+
+        save_result?;
+
+        *self.file_modified.lock().await = false;
+
         Ok(())
     }
 }
@@ -220,7 +271,8 @@ impl Default for FileState {
             content: Arc::new(Mutex::new(Vec::new())),
             theme: ThemeSet::load_defaults().themes["base16-ocean.dark"].to_owned(),
             syntax_set: SyntaxSet::load_defaults_newlines(),
-            background_color: Color::default()
+            background_color: Color::default(),
+            file_modified: Arc::new(Mutex::new(false))
         }
     }
 }

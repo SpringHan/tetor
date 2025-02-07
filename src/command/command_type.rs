@@ -9,7 +9,6 @@ pub enum CursorMoveType {
     End
 }
 
-// TODO: Make this value to None after running relevant prior command
 /// The prior command to be executed.
 /// When the value of this is not None, apply current key event for current prior command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,6 +17,8 @@ pub enum CommandPrior {
     Delete,
     Change,
     Kmacro,
+    ReplaceChar,
+    Quit(bool),
     None
 }
 
