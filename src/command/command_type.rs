@@ -22,11 +22,21 @@ pub enum CommandPrior {
     None
 }
 
+// TODO: Add search command
 #[derive(Debug, Clone)]
 pub enum Command {
+    Save,
+    Quit,
+    Change,
+    ReplaceChar,
+
+    Mark(bool),                 // Whether cancel mark
+    Delete(bool),               // Whether delete char
+    NewLine(bool),              // Whether open down a new line
+
+    PageScroll(isize),
     Move(bool, CursorMoveType),
-    SelfInsert(char),
-    Modification
+    ModeChange(crate::ui::Modal, CursorMoveType),
 }
 
 impl CursorMoveType {
