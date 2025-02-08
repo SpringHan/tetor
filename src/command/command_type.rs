@@ -1,6 +1,10 @@
 // Command
 
-use crate::error::AppResult;
+use crossterm::event::KeyCode;
+
+use crate::{app::App, error::AppResult};
+
+use super::basic::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorMoveType {
@@ -36,7 +40,21 @@ pub enum Command {
 
     PageScroll(isize),
     Move(bool, CursorMoveType),
-    ModeChange(crate::ui::Modal, CursorMoveType),
+    ChangeInsert(CursorMoveType),
+}
+
+impl From<&str> for CursorMoveType {
+    fn from(value: &str) -> Self {
+        match value {
+            "^" => Self::Beg,
+            "$" => Self::End,
+            move_num => {
+                let _num = move_num.parse::<i16>()
+                    .expect("Error code 1 when parsing &str to i16!");
+                Self::Num(_num)
+            }
+        }
+    }
 }
 
 impl CursorMoveType {
@@ -90,13 +108,38 @@ impl CursorMoveType {
 }
 
 impl Command {
-    // TODO: Fill this func
-    pub async fn execute(&self) -> AppResult<()> {
-        // match self {
-        //     Command::Move(motion_direction) => todo!(),
-        //     Command::SelfInsert(_) => todo!(),
-        //     Command::Modification => todo!(),
-        // }
+    pub async fn execute(&self, app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
+        match *self {
+            Command::Save                      => save(app).await?,
+            Command::Quit                      => quit(app, key).await,
+            Command::Change                    => change(app, key).await?,
+            Command::NewLine(down)             => newline(app, *down).await,
+            Command::ReplaceChar               => replace_char(app, key).await?,
+            Command::PageScroll(move_line)     => page_scroll(app, *move_line).await,
+            Command::ChangeInsert(cursor_move) => change_insert(app, *cursor_move).await?,
+
+            Command::Move(within_line, cursor_move) => move_cursor(
+                app,
+                within_line,
+                cursor_move
+            ).await?,
+
+            Command::Mark(_cancel_mark) => {
+                if _cancel_mark {
+                    cancel_mark(app);
+                } else {
+                    mark(app, key)?
+                }
+            },
+
+            Command::Delete(_delete_char) => {
+                if _delete_char {
+                    delete_char(app).await?;
+                } else {
+                    delete(app, key).await?;
+                }
+            }
+        }
 
         Ok(())
     }

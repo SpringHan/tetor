@@ -8,18 +8,13 @@ use crate::{app::App, error::{AppResult, ErrorType}, fs::ContentLine, ui::ModalT
 
 use super::{command_type::CursorMoveType, CommandPrior};
 
-pub async fn change_modal(
+pub async fn change_insert(
     app: &mut App,
-    modal: ModalType,
     cursor_move: CursorMoveType
 ) -> AppResult<()>
 {
     // TODO: add check for mark point
-    if modal == ModalType::Normal {
-        app.get_modal().switch_normal();
-    } else {
-        app.get_modal().switch_insert();
-    }
+    app.get_modal().switch_insert();
 
     move_cursor(app, true, cursor_move).await?;
 
@@ -41,7 +36,7 @@ pub async fn move_cursor(
     Ok(())
 }
 
-pub async fn page_scroll(app: &mut App, scroll: isize) -> AppResult<()> {
+pub async fn page_scroll(app: &mut App, scroll: isize) {
     let editor_state = &mut app.editor_state;
     let scroll_after = (editor_state.offset() as isize) + (scroll * editor_state.height());
 
@@ -49,7 +44,7 @@ pub async fn page_scroll(app: &mut App, scroll: isize) -> AppResult<()> {
         *editor_state.offset_mut() = 0;
         editor_state.scrolling = true;
 
-        return Ok(())
+        return ()
     }
 
 
@@ -59,7 +54,7 @@ pub async fn page_scroll(app: &mut App, scroll: isize) -> AppResult<()> {
     let max_offset = file_length - editor_state.height();
 
     if max_offset < 0 {
-        return Ok(())
+        return ()
     }
 
     *editor_state.offset_mut() = if scroll_after >= max_offset as usize {
@@ -69,8 +64,6 @@ pub async fn page_scroll(app: &mut App, scroll: isize) -> AppResult<()> {
     };
 
     app.editor_state.scrolling = true;
-    
-    Ok(())
 }
 
 pub async fn insert_char(app: &mut App, key: char) -> AppResult<()> {
@@ -297,15 +290,13 @@ pub fn mark(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
     Ok(())
 }
 
-pub fn cancel_mark(app: &mut App) -> AppResult<()> {
+pub fn cancel_mark(app: &mut App) {
     if app.editor_state.mark().is_some() {
         *app.editor_state.mark_mut() = None;
     }
-    
-    Ok(())
 }
 
-pub async fn newline(app: &mut App, down: bool) -> AppResult<()> {
+pub async fn newline(app: &mut App, down: bool) {
     let mut file_content = app.file_state.content_ref().lock().await;
     let cursor = app.editor_state.cursor();
     let mut line_after = cursor.1 as usize;
@@ -324,7 +315,7 @@ pub async fn newline(app: &mut App, down: bool) -> AppResult<()> {
 
         *app.editor_state.cursor_mut() = (0, line_after as u16);
         app.get_modal().switch_insert();
-        return Ok(())
+        return ()
     }
 
     file_content.insert(line_after, new_line);
@@ -332,8 +323,6 @@ pub async fn newline(app: &mut App, down: bool) -> AppResult<()> {
 
     app.file_state.file_modify().await;
     app.get_modal().switch_insert();
-
-    Ok(())
 }
 
 pub async fn save(app: &mut App) -> AppResult<()> {
@@ -342,7 +331,7 @@ pub async fn save(app: &mut App) -> AppResult<()> {
     Ok(())
 }
 
-pub async fn quit(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
+pub async fn quit(app: &mut App, key: Option<KeyCode>) {
     if key.is_none() {
         if app.file_state.not_save().await {
             app.prior_command = CommandPrior::Quit(false);
@@ -350,7 +339,7 @@ pub async fn quit(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
             app.prior_command = CommandPrior::Quit(true);
         }
 
-        return Ok(())
+        return ()
     }
 
     app.prior_command = CommandPrior::None;
@@ -360,6 +349,4 @@ pub async fn quit(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
             app.prior_command = CommandPrior::Quit(true);
         }
     }
-
-    Ok(())
 }
