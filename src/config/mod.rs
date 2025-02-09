@@ -14,7 +14,9 @@ impl From<&str> for Command {
             "change"        => Self::Change,
             "replace_char"  => Self::ReplaceChar,
 
+            "cancel_mark"   => Self::Mark(true),
             "mark"          => Self::Mark(false),
+            "delete_char"   => Self::Delete(true),
             "delete"        => Self::Delete(false),
             "newline"       => Self::NewLine(command_slice[1] == "down"),
             "change_insert" => Self::ChangeInsert(command_slice[1].into()),
@@ -36,6 +38,11 @@ impl From<&str> for Command {
 
                 Self::Move(within_line, cursor_move)
             },
+
+            // TODO: Modify here
+            "search" => Self::Save,
+
+            "search_jump" => Self::Save,
 
             _ => panic!("Invalid command!")
         }

@@ -15,6 +15,10 @@ pub struct Keymap {
 }
 
 impl Keymap {
+    pub fn keymap(&self) -> &HashMap<KeyCode, Command> {
+        &self.maps
+    }
+
     pub async fn init(&mut self) -> AppResult<()> {
         let panic_str = "Wrong content in config file!";
         let document = Self::get_config_doc().await;
@@ -91,8 +95,7 @@ impl Keymap {
                 }
 
                 KeyCode::Char(byte as char)
-            },
-            _ => panic!("Invalid key for parsing!")
+            }
         }
     }
 }

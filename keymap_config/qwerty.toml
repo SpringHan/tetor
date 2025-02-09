@@ -37,5 +37,5 @@ keymap = [
 
        # Others
        { key = "S", run = "save" },
-       { key = "Q", run = "quit" }
+       { key = "q", run = "quit" }
 ]

@@ -17,6 +17,10 @@ pub enum ErrorType {
 }
 
 impl AppError {
+    pub fn into_iter(self) -> impl Iterator<Item = ErrorType> {
+        self.errors.into_iter()
+    }
+
     pub fn add_error(&mut self, error: ErrorType) {
         self.errors.push(error);
     }

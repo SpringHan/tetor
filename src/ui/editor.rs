@@ -145,7 +145,7 @@ impl StatefulWidget for Editor {
         // Render cursor
         let (x, y) = state.cursor_pos;
 
-        // BUG: Maybe there can be bug
+        // BUG: Bug here
         let point = buf.get_mut(x + area.x, y - state.scroll_offset as u16);
 
         point.bg = Color::White;

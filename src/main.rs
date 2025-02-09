@@ -7,10 +7,10 @@ mod command;
 
 use std::time::Duration;
 use std::io::stderr;
-use std::error::Error;
 
-use app::App;
+use app::{handle_input, App};
 use crossterm::event::{self, KeyCode, KeyEventKind};
+use error::AppResult;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend
@@ -29,7 +29,7 @@ use crossterm::{
 
 use tokio::runtime::Runtime;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> AppResult<()> {
     enable_raw_mode()?;
     execute!(stderr(), EnterAlternateScreen)?;
 
@@ -39,19 +39,24 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut app = App::new();
     let rt = Runtime::new().unwrap();
-    // rt.block_on(app.init_file())
-    rt.block_on(async {
-        app.init_file().await.expect("The editor cannot open this file!");
-    });
+
+    rt.block_on(app.init_app())?;
 
     loop {
         terminal.draw(|frame| ui::main_frame(frame, &mut app))?;
 
+        if app.prior_command == command::CommandPrior::Quit(true) {
+            break;
+        }
+
         if poll(Duration::from_millis(200))? {
             if let event::Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    if key.code == KeyCode::Char('q') {
-                        break;
+                    match handle_input(&mut app, key.code, &rt) {
+                        Ok(_) => (),
+                        Err(err) => app.app_errors.append_errors(
+                            err.into_iter()
+                        ),
                     }
                 }
             }

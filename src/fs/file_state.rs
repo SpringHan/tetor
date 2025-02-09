@@ -148,7 +148,7 @@ impl FileState {
 
     /// Get lines from file content with range.
     pub async fn get_lines(&self, from: u16, to: u16) -> AppResult<Vec<String>> {
-        let (from, mut to) = (from as usize, to as usize);
+        let (from, to) = (from as usize, to as usize);
         let file_lines = self.content.lock().await;
 
         if from > to || to >= file_lines.len() {

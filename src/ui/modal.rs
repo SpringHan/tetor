@@ -11,16 +11,6 @@ pub struct Modal {
     _type: ModalType
 }
 
-impl From<String> for ModalType {
-    fn from(value: String) -> Self {
-        match value.as_ref() {
-            "insert" => Self::Insert,
-            "normal" => Self::Normal,
-            _ => panic!("Cannot get modal from string: {}", value)
-        }
-    }
-}
-
 impl Default for Modal {
     fn default() -> Self {
         Modal { _type: ModalType::Normal }
@@ -28,6 +18,10 @@ impl Default for Modal {
 }
 
 impl Modal {
+    pub fn modal(&self) -> ModalType {
+        self._type
+    }
+
     pub fn switch_normal(&mut self) {
         self._type = ModalType::Normal;
         // TODO: Change cursor type.

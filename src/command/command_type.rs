@@ -20,7 +20,6 @@ pub enum CommandPrior {
     Mark,
     Delete,
     Change,
-    Kmacro,
     ReplaceChar,
     Quit(bool),
     None
@@ -83,7 +82,7 @@ impl CursorMoveType {
 
         match self {
             CursorMoveType::Num(i) => {
-                let after_move = before.0 as i16 + i;
+                let after_move = *modify_ref as i16 + i;
 
                 if after_move < 0 {
                     *modify_ref = 0;
@@ -113,10 +112,10 @@ impl Command {
             Command::Save                      => save(app).await?,
             Command::Quit                      => quit(app, key).await,
             Command::Change                    => change(app, key).await?,
-            Command::NewLine(down)             => newline(app, *down).await,
+            Command::NewLine(down)             => newline(app, down).await,
             Command::ReplaceChar               => replace_char(app, key).await?,
-            Command::PageScroll(move_line)     => page_scroll(app, *move_line).await,
-            Command::ChangeInsert(cursor_move) => change_insert(app, *cursor_move).await?,
+            Command::PageScroll(move_line)     => page_scroll(app, move_line).await,
+            Command::ChangeInsert(cursor_move) => change_insert(app, cursor_move).await?,
 
             Command::Move(within_line, cursor_move) => move_cursor(
                 app,

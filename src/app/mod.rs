@@ -6,7 +6,7 @@ pub use handle_input::handle_input;
 use tokio::sync::Mutex;
 
 use crate::{
-    command::CommandPrior,
+    command::{Command, CommandPrior},
     config::Keymap,
     error::{AppError, AppResult},
     fs::{FileState, LineVec},
@@ -25,7 +25,7 @@ pub struct App {
 
     keymap: Keymap,
 
-    app_errors: AppError,
+    pub app_errors: AppError,
 }
 
 impl App {
@@ -39,19 +39,26 @@ impl App {
         }
     }
 
-    // TODO: Modify to add file path as a parameter
-    pub async fn init_file(&mut self) -> AppResult<()> {
-        self.file_state.init("/home/spring/Rust/hire/src/ui.rs").await?;
-        // self.file_state.init("/home/spring/test.el").await?;
-
-        Ok(())
-    }
-
     pub fn get_bg(&self) -> ratatui::style::Color {
         self.file_state.background_color
     }
 
     pub fn get_modal(&mut self) -> &mut crate::ui::Modal {
         &mut self.editor_state.modal
+    }
+
+    pub fn get_command(&self, key: crossterm::event::KeyCode) -> Option<Command> {
+        self.keymap.keymap().get(&key).cloned()
+    }
+
+    pub async fn init_app(&mut self) -> AppResult<()> {
+        let (file_result, keymap_result) = tokio::join!(
+            self.file_state.init("/home/spring/Rust/hire/src/ui.rs"),
+            self.keymap.init()
+        );
+
+        (file_result?, keymap_result?);
+
+        Ok(())
     }
 }
