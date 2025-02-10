@@ -8,35 +8,26 @@ use super::Editor;
 
 pub fn main_frame(frame: &mut Frame, app: &mut App) {
     // TODO: Display range modify.
-    let main_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(0)
-        .constraints(vec![
-            Constraint::Percentage(98),
-            Constraint::Percentage(2)
-        ])
-        .split(frame.size());
-
-    let file_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .margin(0)
-        .constraints(vec![
-            Constraint::Percentage(5),
-            Constraint::Percentage(95)
-        ])
-        .split(main_layout[0]);
+    // let main_layout = Layout::default()
+    //     .direction(Direction::Vertical)
+    //     .margin(0)
+    //     .constraints(vec![
+    //         Constraint::Percentage(98),
+    //         Constraint::Percentage(2)
+    //     ])
+    //     .split(frame.size());
 
     let editor = Editor::new(
         std::sync::Arc::clone(app.file_state.content_ref()),
         app.get_bg()
     );
 
-    frame.render_widget("Test", main_layout[1]);
-
     frame.render_stateful_widget(
         editor,
-        file_layout[1],
-        // frame.size(),
+        // main_layout[0],
+        frame.size(),
         &mut app.editor_state
     );
+
+    // frame.render_widget("Test", main_layout[1]);
 }

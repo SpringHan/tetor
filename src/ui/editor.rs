@@ -1,7 +1,7 @@
 // Editord
 
 use ratatui::{
-    style::Color, text::{Line, Span}, widgets::{Block, Borders, Paragraph, StatefulWidget, Widget}
+    layout::{Constraint, Direction, Layout}, style::{Color, Style}, text::{Line, Span}, widgets::{Block, Borders, Paragraph, StatefulWidget, Widget}
 };
 use tokio::sync::Mutex;
 
@@ -30,7 +30,7 @@ pub struct EditorState {
 #[derive(Debug, Default)]
 pub struct Editor {
     lines: Arc<Mutex<LineVec>>,
-    background_color: Color
+    background_color: Color,
 }
 
 impl Default for EditorState {
@@ -82,7 +82,90 @@ impl Editor {
     pub fn new(content: Arc<Mutex<LineVec>>, bg: Color) -> Self {
         Editor {
             lines: content,
-            background_color: bg
+            background_color: bg,
+        }
+    }
+
+    /// Get length of line number in this crate.
+    fn nr_length<N: ToString>(nr: N) -> u8 {
+        nr.to_string().chars().count() as u8
+    }
+
+    /// Core part for render lines.
+    fn render_core(
+        &mut self,
+        area: ratatui::prelude::Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &mut EditorState
+    )
+    {
+        let text = self.lines.blocking_lock();
+
+        // Update linenr_width
+        let linenr_width = {
+            let length = Self::nr_length(text.len());
+            if length <= 4 {
+                4
+            } else {
+                length
+            }
+        };
+
+        // Render line number & content
+        let mut _y = 0;
+        let mut file_line = state.scroll_offset;
+        while _y < area.height {
+            if let Some(line) = text.get(file_line) {
+                let mut current_length = 0;
+                let mut current_point = linenr_width as u16 + 1; // Current horizontal position in buf
+                let linenr_start = linenr_width - Self::nr_length(file_line + 1);
+
+                // Render line number
+                buf.set_string(
+                    linenr_start as u16,
+                    _y,
+                    (file_line + 1).to_string(),
+                    Style::default()
+                );
+
+                // Render delimiter
+                buf.get_mut(current_point, _y).set_symbol("|");
+                current_point += 1;
+
+                // TODO: Add display for marked content
+                // Render content
+                for (style, span) in line.get_iter() {
+                    for _char in span.chars() {
+                        if current_point == area.width {
+                            _y += 1;
+                            current_point = linenr_width as u16 + 2;
+                            buf.get_mut(current_point - 1, _y).set_symbol("|");
+                        }
+                        
+                        let point_buf = buf.get_mut(current_point, _y)
+                            .set_char(_char);
+
+                        if state.cursor_pos.0 == current_length &&
+                            state.cursor_pos.1 == _y
+                        {
+                            point_buf.fg = Color::White;
+                            point_buf.bg = self.background_color;
+                        } else {
+                            point_buf.set_style(*style);
+                        }
+
+                        current_point += 1;
+                        current_length += 1;
+                    }
+                }
+
+                _y += 1;
+                file_line += 1;
+
+                continue;
+            }
+
+            break;
         }
     }
 }
@@ -91,20 +174,16 @@ impl StatefulWidget for Editor {
     type State = EditorState;
 
     fn render(
-        self,
+        mut self,
         area: ratatui::prelude::Rect,
         buf: &mut ratatui::prelude::Buffer,
         state: &mut Self::State
     )
     {
-        let block = Block::default()
-            .borders(Borders::LEFT);
-
+        // Initialize editor height
         if state.editor_height.is_none() {
             state.editor_height = Some(area.height as isize);
         }
-
-        // TODO: Add mark region display
 
         // Adjust scroll_offset & cursor position.
         if state.cursor_pos.1 < state.scroll_offset as u16 {
@@ -125,32 +204,8 @@ impl StatefulWidget for Editor {
             }
         }
 
-        // state.scroll_offset = 0;
-        // state.cursor_pos = (0, 0);
-
-        let text = self.lines.blocking_lock()[state.scroll_offset..]
-            .iter()
-            .take(area.height as usize - 2)
-            .fold(Vec::new(), |mut acc, line| {
-                acc.push(Line::from(
-                    line.get_iter()
-                        .map(|(style, content)| Span::styled(content.to_owned(), *style))
-                        .collect::<Vec<_>>()
-                ));
-                acc
-            });
-
-        Paragraph::new(text)
-            .block(block)
-            .render(area, buf);
-
-        // Render cursor
-        let (x, y) = state.cursor_pos;
-
-        // BUG: Bug here
-        let point = buf.get_mut(x + area.x, y - state.scroll_offset as u16);
-
-        point.bg = Color::White;
-        point.fg = self.background_color;
+        // Render editor view & cursor
+        self.render_core(area, buf, state);
+        // println!("{}", state.scroll_offset);
     }
 }

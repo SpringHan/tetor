@@ -73,7 +73,10 @@ impl CursorMoveType {
         let mut after = before;
 
         if within_line {
-            max = file_state.get_lines(before.1, before.1).await?[0].len() - 1;
+            max = file_state.get_lines(before.1, before.1)
+                .await?[0]
+                .chars()
+                .count() - 1;
             modify_ref = &mut after.0;
         } else {
             max = file_state.content_ref().lock().await.len() - 1;
@@ -93,10 +96,10 @@ impl CursorMoveType {
                 }
 
                 if !within_line {
-                    let new_line_length = file_state.get_lines(
-                        after.1,
-                        after.1
-                    ).await?[0].len() - 1;
+                    let new_line_length = file_state.get_lines(after.1, after.1)
+                        .await?[0]
+                        .chars()
+                        .count() - 1;
 
                     if after.0 > new_line_length as u16 {
                         after.0 = new_line_length as u16;
