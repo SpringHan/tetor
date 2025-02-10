@@ -98,11 +98,13 @@ impl StatefulWidget for Editor {
     )
     {
         let block = Block::default()
-            .borders(Borders::NONE);
+            .borders(Borders::LEFT);
 
         if state.editor_height.is_none() {
             state.editor_height = Some(area.height as isize);
         }
+
+        // TODO: Add mark region display
 
         // Adjust scroll_offset & cursor position.
         if state.cursor_pos.1 < state.scroll_offset as u16 {

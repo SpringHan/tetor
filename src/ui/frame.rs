@@ -12,8 +12,8 @@ pub fn main_frame(frame: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .margin(0)
         .constraints(vec![
-            Constraint::Percentage(99),
-            Constraint::Percentage(1)
+            Constraint::Percentage(98),
+            Constraint::Percentage(2)
         ])
         .split(frame.size());
 
@@ -31,9 +31,12 @@ pub fn main_frame(frame: &mut Frame, app: &mut App) {
         app.get_bg()
     );
 
+    frame.render_widget("Test", main_layout[1]);
+
     frame.render_stateful_widget(
         editor,
         file_layout[1],
+        // frame.size(),
         &mut app.editor_state
     );
 }

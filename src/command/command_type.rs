@@ -69,14 +69,14 @@ impl CursorMoveType {
             return Ok(before)
         }
 
-        let (length, modify_ref);
+        let (max, modify_ref);
         let mut after = before;
 
         if within_line {
-            length = file_state.get_lines(before.1, before.1).await?[0].len() - 1;
+            max = file_state.get_lines(before.1, before.1).await?[0].len() - 1;
             modify_ref = &mut after.0;
         } else {
-            length = file_state.content_ref().lock().await.len() - 1;
+            max = file_state.content_ref().lock().await.len() - 1;
             modify_ref = &mut after.1;
         }
 
@@ -86,20 +86,25 @@ impl CursorMoveType {
 
                 if after_move < 0 {
                     *modify_ref = 0;
-
-                    return Ok(after)
+                } else if after_move as usize >= max {
+                    *modify_ref = max as u16;
+                } else {
+                    *modify_ref = after_move as u16;
                 }
 
-                if after_move as usize >= length {
-                    *modify_ref = length as u16;
+                if !within_line {
+                    let new_line_length = file_state.get_lines(
+                        after.1,
+                        after.1
+                    ).await?[0].len() - 1;
 
-                    return Ok(after)
+                    if after.0 > new_line_length as u16 {
+                        after.0 = new_line_length as u16;
+                    }
                 }
-
-                *modify_ref = after_move as u16;
             },
             CursorMoveType::Beg => *modify_ref = 0,
-            CursorMoveType::End => *modify_ref = length as u16,
+            CursorMoveType::End => *modify_ref = max as u16,
         }
 
         Ok(after)
