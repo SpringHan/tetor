@@ -3,17 +3,27 @@
 use crossterm::event::KeyCode;
 use tokio::runtime::Runtime;
 
-use crate::{command::{insert_char, Command, CommandPrior}, error::{AppError, AppResult, ErrorType}, ui::ModalType};
+use crate::{
+    command::{backward_char, insert_char, Command, CommandPrior},
+    error::{AppResult, ErrorType},
+    ui::ModalType
+};
 
 use super::App;
 
 pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> {
+    if app.prior_command == CommandPrior::ConfirmError {
+        app.prior_command = CommandPrior::None;
+        app.app_errors.throw();
+
+        return Ok(())
+    }
+
     if app.get_modal().modal() == ModalType::Insert {
         match key {
             KeyCode::Char(_key) => rt.block_on(insert_char(app, _key))?,
             KeyCode::Esc => app.get_modal().switch_normal(),
-            // TODO: Command for backspace
-            KeyCode::Backspace => (),
+            KeyCode::Backspace => rt.block_on(backward_char(app))?,
             _ => (),
         }
 
@@ -27,6 +37,7 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
             CommandPrior::Change => Some(Command::Change),
             CommandPrior::ReplaceChar => Some(Command::ReplaceChar),
             CommandPrior::Quit(_) => Some(Command::Quit),
+            CommandPrior::ConfirmError => panic!("Unknow error!"),
             CommandPrior::None => None,
         };
 

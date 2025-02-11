@@ -22,6 +22,7 @@ pub enum CommandPrior {
     Change,
     ReplaceChar,
     Quit(bool),
+    ConfirmError,
     None
 }
 
@@ -32,6 +33,7 @@ pub enum Command {
     Quit,
     Change,
     ReplaceChar,
+    BackwardChar,
 
     Mark(bool),                 // Whether cancel mark
     Delete(bool),               // Whether delete char
@@ -122,6 +124,7 @@ impl Command {
             Command::Quit                      => quit(app, key).await,
             Command::Change                    => change(app, key).await?,
             Command::NewLine(down)             => newline(app, down).await,
+            Command::BackwardChar              => backward_char(app).await?,
             Command::ReplaceChar               => replace_char(app, key).await?,
             Command::PageScroll(move_line)     => page_scroll(app, move_line).await,
             Command::ChangeInsert(cursor_move) => change_insert(app, cursor_move).await?,

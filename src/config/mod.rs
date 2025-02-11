@@ -13,6 +13,7 @@ impl From<&str> for Command {
             "quit"          => Self::Quit,
             "change"        => Self::Change,
             "replace_char"  => Self::ReplaceChar,
+            "backward_char" => Self::BackwardChar,
 
             "cancel_mark"   => Self::Mark(true),
             "mark"          => Self::Mark(false),

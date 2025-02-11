@@ -25,6 +25,7 @@ type StylizedContent = Vec<(ratatui::style::Style, String)>;
 #[derive(Debug, Clone)]
 pub struct ContentLine(StylizedContent);
 
+// TODO: Do not load all the file when the file is too large
 #[derive(Debug)]
 pub struct FileState {
     pub background_color: Color,
@@ -167,6 +168,7 @@ impl FileState {
         )
     }
 
+    // TODO: Improve syntax highlight performance
     /// Modify lines with modified lines & range.
     /// Update its syntax highlight in the meanwhile.
     pub async fn modify_lines(
@@ -214,7 +216,7 @@ impl FileState {
                 continue;
             }
 
-            if i >= highlighted_lines.len() {
+            if i - from >= highlighted_lines.len() {
                 file_lines.remove(i);
                 continue;
             }

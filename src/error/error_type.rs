@@ -13,6 +13,8 @@ pub struct AppError {
 pub enum ErrorType {
     IO(tokio::io::ErrorKind, String),
     Specific(String),
+    // TODO: Remove this if it's not necessary
+    UnknowPanicError,
 }
 
 impl AppError {
@@ -34,10 +36,14 @@ impl AppError {
         self.errors.extend(iter);
     }
 
-    pub fn pop(&mut self) -> String {
-        self.errors.pop()
+    pub fn get_first(&self) -> String {
+        self.errors.first()
             .expect("Error code 1 at pop in error_type.rs!")
             .value()
+    }
+
+    pub fn throw(&mut self) {
+        self.errors.remove(0);
     }
 
     pub fn clear(&mut self) {
@@ -58,6 +64,9 @@ impl ErrorType {
             ErrorType::Specific(ref msg) => {
                 format!("[Error]: {}!", msg.to_owned())
             }
+            ErrorType::UnknowPanicError => {
+                String::from("[Error]: Operation failed due to unknow panic error!")
+            },
         }
     }
 }
@@ -85,4 +94,11 @@ impl std::fmt::Display for AppError {
 
         write!(f, "{}", msg)
     }
+}
+
+#[macro_export]
+macro_rules! panic_error {
+    () => {
+        return Err(crate::error::ErrorType::UnknowPanicError.pack())
+    };
 }

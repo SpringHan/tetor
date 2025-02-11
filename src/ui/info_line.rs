@@ -2,7 +2,7 @@
 
 use ratatui::{style::{Color, Modifier, Style}, text::Line, widgets::Widget};
 
-use crate::{app::App, ui::ModalType};
+use crate::{app::App, command::CommandPrior, ui::ModalType};
 
 #[derive(Debug, Clone)]
 pub struct InfoLine<'a> {
@@ -14,9 +14,11 @@ impl<'a> From<&mut App> for InfoLine<'a> {
         let mut msg = String::new();
         let mut style = Style::default();
 
+        // TODO: Display for file modification case
         loop {
             if !app.app_errors.empty() {
-                msg = app.app_errors.pop();
+                app.prior_command = CommandPrior::ConfirmError;
+                msg = app.app_errors.get_first();
                 style.fg = Some(Color::Red);
                 break;
             }

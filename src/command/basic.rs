@@ -4,7 +4,7 @@ use std::mem::swap;
 
 use crossterm::event::KeyCode;
 
-use crate::{app::App, error::{AppResult, ErrorType}, fs::ContentLine, ui::ModalType};
+use crate::{app::App, error::{AppResult, ErrorType}, fs::ContentLine, panic_error, ui::ModalType};
 
 use super::{command_type::CursorMoveType, CommandPrior};
 
@@ -101,12 +101,14 @@ pub async fn delete_char(app: &mut App) -> AppResult<()> {
             app.editor_state.cursor_mut().1 = file_length - 1;
         }
 
+        app.file_state.file_modify().await;
         return Ok(())
     }
 
     current_line[0].remove(cursor.0 as usize);
 
     app.file_state.modify_lines(cursor.1, cursor.1, current_line).await?;
+    app.file_state.file_modify().await;
 
     Ok(())
 }
@@ -309,11 +311,13 @@ pub async fn newline(app: &mut App, down: bool) {
         line_after += 1;
     }
 
+    app.file_state.file_modify().await;
+    *app.editor_state.cursor_mut() = (0, line_after as u16);
+
     if line_after >= file_content.len() {
         file_content.push(new_line);
         drop(file_content);
 
-        *app.editor_state.cursor_mut() = (0, line_after as u16);
         app.get_modal().switch_insert();
         return ()
     }
@@ -321,8 +325,44 @@ pub async fn newline(app: &mut App, down: bool) {
     file_content.insert(line_after, new_line);
     drop(file_content);
 
-    app.file_state.file_modify().await;
     app.get_modal().switch_insert();
+}
+
+pub async fn backward_char(app: &mut App) -> AppResult<()> {
+    let cursor = app.editor_state.cursor();
+
+    if cursor.0 == 0 {
+        if cursor.1 == 0 {
+            return Ok(())
+        }
+
+        // let mut file_content = app.file_state.content_ref().lock().await;
+        let mut lines = app.file_state.get_lines(cursor.1 - 1, cursor.1).await?;
+        *app.editor_state.cursor_mut() = (
+            lines[0].len() as u16,
+            cursor.1 - 1
+        );
+
+        lines[0].pop();
+        app.file_state.modify_lines(
+            cursor.1 - 1,
+            cursor.1,
+            vec![lines.join("")]
+        ).await?;
+
+        app.file_state.file_modify().await;
+        return Ok(())
+    }
+
+    let mut modified_line = app.file_state.get_lines(cursor.1, cursor.1).await?;
+    
+    modified_line[0].remove(cursor.0 as usize - 1);
+
+    app.file_state.modify_lines(cursor.1, cursor.1, modified_line).await?;
+    app.file_state.file_modify().await;
+    app.editor_state.cursor_mut().0 -= 1;
+
+    Ok(())
 }
 
 pub async fn save(app: &mut App) -> AppResult<()> {

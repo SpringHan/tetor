@@ -184,8 +184,10 @@ impl StatefulWidget for Editor {
         state: &mut Self::State
     )
     {
-        // Initialize editor height
-        if state.editor_height.is_none() {
+        // Adjust window size
+        if state.editor_height.is_none() ||
+            state.editor_height.unwrap() != area.height as isize
+        {
             state.editor_height = Some(area.height as isize);
         }
 
