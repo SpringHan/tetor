@@ -13,10 +13,13 @@ pub struct AppError {
 pub enum ErrorType {
     IO(tokio::io::ErrorKind, String),
     Specific(String),
-    InvalidCommand(String)
 }
 
 impl AppError {
+    pub fn empty(&self) -> bool {
+        self.errors.is_empty()
+    }
+
     pub fn into_iter(self) -> impl Iterator<Item = ErrorType> {
         self.errors.into_iter()
     }
@@ -29,6 +32,12 @@ impl AppError {
     where I: Iterator<Item = ErrorType>
     {
         self.errors.extend(iter);
+    }
+
+    pub fn pop(&mut self) -> String {
+        self.errors.pop()
+            .expect("Error code 1 at pop in error_type.rs!")
+            .value()
     }
 
     pub fn clear(&mut self) {
@@ -48,10 +57,7 @@ impl ErrorType {
             },
             ErrorType::Specific(ref msg) => {
                 format!("[Error]: {}!", msg.to_owned())
-            },
-            ErrorType::InvalidCommand(ref cmd) => {
-                format!("[Error]: Invalid Command: {}!", cmd.to_owned())
-            },
+            }
         }
     }
 }

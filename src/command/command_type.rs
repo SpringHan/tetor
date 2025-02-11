@@ -95,19 +95,20 @@ impl CursorMoveType {
                     *modify_ref = after_move as u16;
                 }
 
-                if !within_line {
-                    let new_line_length = file_state.get_lines(after.1, after.1)
-                        .await?[0]
-                        .chars()
-                        .count() - 1;
-
-                    if after.0 > new_line_length as u16 {
-                        after.0 = new_line_length as u16;
-                    }
-                }
             },
             CursorMoveType::Beg => *modify_ref = 0,
             CursorMoveType::End => *modify_ref = max as u16,
+        }
+
+        if !within_line {
+            let new_line_length = file_state.get_lines(after.1, after.1)
+                .await?[0]
+                .chars()
+                .count() - 1;
+
+            if after.0 > new_line_length as u16 {
+                after.0 = new_line_length as u16;
+            }
         }
 
         Ok(after)

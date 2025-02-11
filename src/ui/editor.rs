@@ -1,8 +1,6 @@
 // Editord
 
-use ratatui::{
-    layout::{Constraint, Direction, Layout}, style::{Color, Style}, text::{Line, Span}, widgets::{Block, Borders, Paragraph, StatefulWidget, Widget}
-};
+use ratatui::{style::{Color, Style}, widgets::StatefulWidget};
 use tokio::sync::Mutex;
 
 use std::sync::Arc;
@@ -138,18 +136,24 @@ impl Editor {
                     for _char in span.chars() {
                         if current_point == area.width {
                             _y += 1;
+                            if _y == area.height {
+                                break;
+                            }
+
                             current_point = linenr_width as u16 + 2;
                             buf.get_mut(current_point - 1, _y).set_symbol("|");
                         }
-                        
-                        let point_buf = buf.get_mut(current_point, _y)
-                            .set_char(_char);
+
+                        let point_buf = buf.get_mut(current_point, _y);
+                        if _char != '\n' {
+                            point_buf.set_char(_char);
+                        }
 
                         if state.cursor_pos.0 == current_length &&
-                            state.cursor_pos.1 == _y
+                            state.cursor_pos.1 == file_line as u16
                         {
-                            point_buf.fg = Color::White;
-                            point_buf.bg = self.background_color;
+                            point_buf.bg = Color::White;
+                            point_buf.fg = self.background_color;
                         } else {
                             point_buf.set_style(*style);
                         }
@@ -189,23 +193,24 @@ impl StatefulWidget for Editor {
         if state.cursor_pos.1 < state.scroll_offset as u16 {
             if state.scrolling {
                 state.cursor_pos.1 = state.scroll_offset as u16;
-
-                state.scrolling = false;
             } else {
                 state.scroll_offset = state.cursor_pos.1 as usize;
             }
-        } else if state.cursor_pos.1 > area.height + state.scroll_offset as u16 {
+        } else if state.cursor_pos.1 >= area.height + state.scroll_offset as u16 {
             if state.scrolling {
                 state.cursor_pos.1 = state.scroll_offset as u16 + area.height - 1;
-
-                state.scrolling = false;
             } else {
                 state.scroll_offset = (state.cursor_pos.1 - area.height / 2) as usize;
             }
         }
 
+        // To avoid this variable make impact on other motion
+        // after page_scroll reached to edges.
+        if state.scrolling {
+            state.scrolling = false;
+        }
+
         // Render editor view & cursor
         self.render_core(area, buf, state);
-        // println!("{}", state.scroll_offset);
     }
 }

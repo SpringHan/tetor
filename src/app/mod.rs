@@ -52,8 +52,11 @@ impl App {
     }
 
     pub async fn init_app(&mut self) -> AppResult<()> {
+        // TODO: If cannot find parse, use basic color for all the fonts.
         let (file_result, keymap_result) = tokio::join!(
-            self.file_state.init("/home/spring/Rust/hire/src/ui.rs"),
+            self.file_state.init("/home/spring/test.el"),
+            // self.file_state.init("/home/spring/Rust/hire/src/ui.rs"),
+            // self.file_state.init("/var/log/pacman.log"),
             self.keymap.init()
         );
 

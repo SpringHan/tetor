@@ -30,9 +30,6 @@ use crossterm::{
 use tokio::runtime::Runtime;
 
 fn main() -> AppResult<()> {
-    enable_raw_mode()?;
-    execute!(stderr(), EnterAlternateScreen)?;
-
     // Frame init
     let backend = CrosstermBackend::new(stderr());
     let mut terminal = Terminal::new(backend)?;
@@ -42,6 +39,9 @@ fn main() -> AppResult<()> {
 
     rt.block_on(app.init_app())?;
 
+    enable_raw_mode()?;
+    execute!(stderr(), EnterAlternateScreen)?;
+
     loop {
         terminal.draw(|frame| ui::main_frame(frame, &mut app))?;
 
@@ -49,7 +49,7 @@ fn main() -> AppResult<()> {
             break;
         }
 
-        if poll(Duration::from_millis(200))? {
+        if poll(Duration::from_millis(100))? {
             if let event::Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     match handle_input(&mut app, key.code, &rt) {
