@@ -9,7 +9,7 @@ use std::time::Duration;
 use std::io::stderr;
 
 use app::{handle_input, App};
-use crossterm::event::{self, KeyCode, KeyEventKind};
+use crossterm::event::{self, KeyEventKind};
 use error::AppResult;
 use ratatui::{
     Terminal,
@@ -43,7 +43,7 @@ fn main() -> AppResult<()> {
     execute!(stderr(), EnterAlternateScreen)?;
 
     loop {
-        terminal.draw(|frame| ui::main_frame(frame, &mut app))?;
+        terminal.draw(|frame| ui::main_frame(frame, &mut app, &rt))?;
 
         if app.prior_command == command::CommandPrior::Quit(true) {
             break;

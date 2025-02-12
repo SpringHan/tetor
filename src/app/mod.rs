@@ -26,6 +26,8 @@ pub struct App {
     keymap: Keymap,
 
     pub app_errors: AppError,
+
+    pub ask_msg: Option<String>
 }
 
 impl App {
@@ -35,7 +37,8 @@ impl App {
             keymap: Keymap::default(),
             editor_state: EditorState::default(),
             app_errors: AppError::default(),
-            prior_command: CommandPrior::None
+            prior_command: CommandPrior::None,
+            ask_msg: None
         }
     }
 

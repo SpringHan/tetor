@@ -375,6 +375,7 @@ pub async fn quit(app: &mut App, key: Option<KeyCode>) {
     if key.is_none() {
         if app.file_state.not_save().await {
             app.prior_command = CommandPrior::Quit(false);
+            app.ask_msg = Some(String::from("File has not been saved, still quit?"));
         } else {
             app.prior_command = CommandPrior::Quit(true);
         }
@@ -383,6 +384,7 @@ pub async fn quit(app: &mut App, key: Option<KeyCode>) {
     }
 
     app.prior_command = CommandPrior::None;
+    app.ask_msg = None;
 
     if let KeyCode::Char(_key) = key.unwrap() {
         if _key == 'y' {

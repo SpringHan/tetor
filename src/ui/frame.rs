@@ -3,10 +3,11 @@
 use crate::app::App;
 
 use ratatui::{layout::{Constraint, Direction, Layout}, Frame};
+use tokio::runtime::Runtime;
 
 use super::{info_line::InfoLine, Editor};
 
-pub fn main_frame(frame: &mut Frame, app: &mut App) {
+pub fn main_frame(frame: &mut Frame, app: &mut App, rt: &Runtime) {
     // TODO: Display range modify.
     let main_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -22,7 +23,7 @@ pub fn main_frame(frame: &mut Frame, app: &mut App) {
         app.get_bg()
     );
 
-    let info_line = InfoLine::from(&mut *app);
+    let info_line = InfoLine::from((&mut *app, &*rt));
 
     frame.render_stateful_widget(
         editor,
