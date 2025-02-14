@@ -29,6 +29,7 @@ pub struct EditorState {
 pub struct Editor {
     lines: Arc<Mutex<LineVec>>,
     background_color: Color,
+    render_cursor: bool
 }
 
 impl Default for EditorState {
@@ -77,10 +78,11 @@ impl EditorState {
 }
 
 impl Editor {
-    pub fn new(content: Arc<Mutex<LineVec>>, bg: Color) -> Self {
+    pub fn new(content: Arc<Mutex<LineVec>>, bg: Color, render_cursor: bool) -> Self {
         Editor {
             lines: content,
             background_color: bg,
+            render_cursor
         }
     }
 
@@ -149,7 +151,8 @@ impl Editor {
                             point_buf.set_char(_char);
                         }
 
-                        if state.cursor_pos.0 == current_length &&
+                        if self.render_cursor &&
+                            state.cursor_pos.0 == current_length &&
                             state.cursor_pos.1 == file_line as u16
                         {
                             point_buf.bg = Color::White;

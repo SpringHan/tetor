@@ -24,11 +24,9 @@ impl Modal {
 
     pub fn switch_normal(&mut self) {
         self._type = ModalType::Normal;
-        // TODO: Change cursor type.
     }
 
     pub fn switch_insert(&mut self) {
         self._type = ModalType::Insert;
-        // TODO: Change cursor type.
     }
 }

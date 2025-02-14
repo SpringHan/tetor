@@ -20,7 +20,8 @@ pub fn main_frame(frame: &mut Frame, app: &mut App, rt: &Runtime) {
 
     let editor = Editor::new(
         std::sync::Arc::clone(app.file_state.content_ref()),
-        app.get_bg()
+        app.get_bg(),
+        app.app_errors.empty()
     );
 
     let info_line = InfoLine::from((&mut *app, &*rt));

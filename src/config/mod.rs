@@ -42,7 +42,6 @@ impl From<&str> for Command {
 
             // TODO: Modify here
             "search" => Self::Save,
-
             "search_jump" => Self::Save,
 
             _ => panic!("Invalid command!")

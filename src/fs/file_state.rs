@@ -76,9 +76,18 @@ impl FileState {
         let read_task = async {
             let mut _content = String::new();
 
+            // TODO: Modify to read line by line
             file.read_to_string(&mut _content).await?;
-            tx.send(_content)
-                .expect("Error Code 0 in file_state.rs: Sender cannot send msg!");
+
+            if tx.is_closed() {
+                return Err(
+                    ErrorType::Specific(
+                        String::from("Channel closed when initializing file information")
+                    ).pack()
+                )
+            }
+
+            tx.send(_content).unwrap();
 
             Ok::<(), AppError>(())
         };
@@ -105,41 +114,51 @@ impl FileState {
         let find_syntax = self.syntax_set.find_syntax_for_file(
             path.as_ref()
         )?;
-        if find_syntax.is_none() {
-            return Err(
-                error::ErrorType::Specific(String::from(
-                    "Cannot find syntax for current file!"
-                )).pack()
-            )
-        }
 
         let mut result: LineVec = Vec::new();
         let mut get_bg = false;
         let mut background_color: Color = Color::default();
 
-        let syntax = find_syntax.unwrap();
-        let mut h = HighlightLines::new(syntax, &self.theme);
+        let mut h = if find_syntax.is_some() {
+            Some(HighlightLines::new(find_syntax.unwrap(), &self.theme))
+        } else {
+            None
+        };
 
         if let Some(content) = rx.recv().await {
             for line in LinesWithEndings::from(&content) {
-                // TODO: Return no highlight content
-                let ranges = h.highlight_line(line, &self.syntax_set)
-                    .unwrap();
+                // Highligth line
+                if let Some(ref mut _h) = h {
+                    let ranges = _h.highlight_line(line, &self.syntax_set)
+                        .unwrap();
 
+                    if !get_bg {
+                        get_bg = true;
+
+                        background_color = ranges.get(0)
+                            .expect("Error code 1 at parse_content in file_state.rs")
+                            .0
+                            .background
+                            .to_rcolor();
+                    }
+
+                    result.push(ContentLine(
+                        ranges.into_iter()
+                            .map(|(style, _content)| (style.to_rstyle(), String::from(_content)))
+                            .collect::<StylizedContent>()
+                    ));
+
+                    continue;
+                }
+
+                // Use default color
                 if !get_bg {
+                    background_color = Color::Black;
                     get_bg = true;
-
-                    background_color = ranges.get(0)
-                        .expect("Error code 1 at parse_content in file_state.rs")
-                        .0
-                        .background
-                        .to_rcolor();
                 }
 
                 result.push(ContentLine(
-                    ranges.into_iter()
-                        .map(|(style, _content)| (style.to_rstyle(), String::from(_content)))
-                        .collect::<StylizedContent>()
+                    vec![(Style::default(), line.to_owned())]
                 ));
             }
         }
@@ -168,7 +187,6 @@ impl FileState {
         )
     }
 
-    // TODO: Improve syntax highlight performance
     /// Modify lines with modified lines & range.
     /// Update its syntax highlight in the meanwhile.
     pub async fn modify_lines(
@@ -204,7 +222,7 @@ impl FileState {
         tx.send(lines.join(""))
             .expect("Error code 2 at modify_lines in file_state.rs!");
 
-        let highlighted_lines = self.parse_content(
+        let mut highlighted_lines = self.parse_content(
             self.path.to_owned(),
             rx
         ).await?.0;
@@ -212,7 +230,8 @@ impl FileState {
         // Simply replace the original lines
         for i in from..=to {
             if i >= file_lines.len() {
-                file_lines.push(highlighted_lines[i - from].to_owned());
+                // file_lines.push(highlighted_lines[i - from].to_owned());
+                file_lines.push(Self::pop_first(&mut highlighted_lines));
                 continue;
             }
 
@@ -221,7 +240,19 @@ impl FileState {
                 continue;
             }
 
-            file_lines[i] = highlighted_lines[i - from].to_owned();
+            // file_lines[i] = highlighted_lines[i - from].to_owned();
+            file_lines[i] = Self::pop_first(&mut highlighted_lines);
+        }
+
+        if !highlighted_lines.is_empty() {
+            for line in highlighted_lines.into_iter() {
+                if to == file_lines.len() - 1 {
+                    file_lines.push(line);
+                    continue;
+                }
+
+                file_lines.insert(to + 1, line);
+            }
         }
 
         self.file_modify().await;
@@ -263,6 +294,12 @@ impl FileState {
         *self.file_modified.lock().await = false;
 
         Ok(())
+    }
+
+    fn pop_first(_vec: &mut Vec<ContentLine>) -> ContentLine {
+        let element = _vec[0].to_owned();
+        _vec.remove(0);
+        element
     }
 }
 

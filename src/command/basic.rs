@@ -81,6 +81,13 @@ pub async fn insert_char(app: &mut App, key: char) -> AppResult<()> {
         edit_line
     ).await?;
 
+    if key == '\n' {
+        let cursor = app.editor_state.cursor_mut();
+        cursor.0 = 0;
+        cursor.1 += 1;
+        return Ok(())
+    }
+
     app.editor_state.cursor_mut().0 += 1;
 
     Ok(())
@@ -190,7 +197,6 @@ pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
     // NOTE: Avoid the occurred error makes this value cannot be reset.
     app.prior_command = CommandPrior::None;
 
-    // TODO: Make the key customizable
     match key.unwrap() {
         KeyCode::Char('d') => {
             app.file_state.modify_lines(cursor.1, cursor.1, Vec::new()).await?;
@@ -339,7 +345,7 @@ pub async fn backward_char(app: &mut App) -> AppResult<()> {
         // let mut file_content = app.file_state.content_ref().lock().await;
         let mut lines = app.file_state.get_lines(cursor.1 - 1, cursor.1).await?;
         *app.editor_state.cursor_mut() = (
-            lines[0].len() as u16,
+            lines[0].len() as u16 - 1,
             cursor.1 - 1
         );
 

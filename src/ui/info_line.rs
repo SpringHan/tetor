@@ -36,6 +36,8 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
                     app.app_errors.get_first() ,
                     Style::new().fg(Color::Red)
                 ));
+                msg.push(Span::styled(" ", Style::new().bg(Color::White)));
+
                 break;
             }
 
