@@ -58,6 +58,8 @@ fn main() -> AppResult<()> {
                             err.into_iter()
                         ),
                     }
+                    // TODO: Add refresh_stylized function
+                    // Consider the change of scroll_offset & cursor_pos
                 }
             }
         }

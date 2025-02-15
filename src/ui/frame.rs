@@ -19,7 +19,7 @@ pub fn main_frame(frame: &mut Frame, app: &mut App, rt: &Runtime) {
         .split(frame.size());
 
     let editor = Editor::new(
-        std::sync::Arc::clone(app.file_state.content_ref()),
+        std::sync::Arc::clone(app.file_state.stylized_ref()),
         app.get_bg(),
         app.app_errors.empty()
     );

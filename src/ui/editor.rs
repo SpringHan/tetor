@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 
 use std::sync::Arc;
 
-use crate::fs::LineVec;
+use crate::fs::StylizedVec;
 
 use super::modal::Modal;
 
@@ -27,7 +27,7 @@ pub struct EditorState {
 
 #[derive(Debug, Default)]
 pub struct Editor {
-    lines: Arc<Mutex<LineVec>>,
+    lines: Arc<Mutex<StylizedVec>>,
     background_color: Color,
     render_cursor: bool
 }
@@ -78,7 +78,7 @@ impl EditorState {
 }
 
 impl Editor {
-    pub fn new(content: Arc<Mutex<LineVec>>, bg: Color, render_cursor: bool) -> Self {
+    pub fn new(content: Arc<Mutex<StylizedVec>>, bg: Color, render_cursor: bool) -> Self {
         Editor {
             lines: content,
             background_color: bg,

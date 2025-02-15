@@ -4,7 +4,7 @@ use std::mem::swap;
 
 use crossterm::event::KeyCode;
 
-use crate::{app::App, error::{AppResult, ErrorType}, fs::ContentLine, panic_error, ui::ModalType};
+use crate::{app::App, error::{AppResult, ErrorType}};
 
 use super::{command_type::CursorMoveType, CommandPrior};
 
@@ -309,9 +309,7 @@ pub async fn newline(app: &mut App, down: bool) {
     let cursor = app.editor_state.cursor();
     let mut line_after = cursor.1 as usize;
 
-    let new_line = ContentLine::new(vec![
-        (ratatui::style::Style::default(), String::from("\n"))
-    ]);
+    let new_line = String::from("\n");
 
     if down {
         line_after += 1;
@@ -367,6 +365,11 @@ pub async fn backward_char(app: &mut App) -> AppResult<()> {
     app.file_state.modify_lines(cursor.1, cursor.1, modified_line).await?;
     app.file_state.file_modify().await;
     app.editor_state.cursor_mut().0 -= 1;
+
+    Ok(())
+}
+
+pub async fn search(app: &mut App, regex: String) -> AppResult<()> {
 
     Ok(())
 }

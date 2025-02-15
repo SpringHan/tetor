@@ -6,7 +6,7 @@ use crate::error::{self, AppError, AppResult, ErrorType};
 use ratatui::style::{Color, Style};
 use tokio::{fs, sync::Mutex};
 use tokio::sync::mpsc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 
 use syntect::{
     parsing::SyntaxSet,
@@ -18,23 +18,42 @@ use syntect::{
 use std::sync::Arc;
 use std::path::{Path, PathBuf};
 
-pub type LineVec = Vec<ContentLine>;
+pub type LineVec = Vec<String>;
+pub type StylizedVec = Vec<ContentLine>;
 type StylizedContent = Vec<(ratatui::style::Style, String)>;
 
 /// A structure storing single line of stylized content.
 #[derive(Debug, Clone)]
 pub struct ContentLine(StylizedContent);
 
+/// Structure used to stylize content in a range.
+#[derive(Debug, Clone, Copy)]
+pub struct StylizeRange {
+    start: usize,
+    line_nr: u16,
+}
+
 // TODO: Do not load all the file when the file is too large
 #[derive(Debug)]
 pub struct FileState {
     pub background_color: Color,
     content: Arc<Mutex<LineVec>>,
+    stylized: Arc<Mutex<StylizedVec>>,
+
     file_modified: Arc<Mutex<bool>>,
 
     path: PathBuf,
     theme: Theme,
     syntax_set: SyntaxSet
+}
+
+impl Into<String> for ContentLine {
+    fn into(self) -> String {
+        self.0.into_iter()
+            .map(|(_, span)| span)
+            .collect::<Vec<_>>()
+            .join("")
+    }
 }
 
 impl ContentLine {
@@ -47,15 +66,13 @@ impl ContentLine {
     }
 }
 
-impl Into<String> for ContentLine {
-    fn into(self) -> String {
-        self.0.into_iter()
-            .map(|(_, span)| span)
-            .collect::<Vec<_>>()
-            .join("")
+impl StylizeRange {
+    pub fn new(start: usize, height: u16) -> Self {
+        Self { line_nr: height, start }
     }
 }
 
+// Main Implementation
 impl FileState {
     pub async fn file_modify(&self) {
         *self.file_modified.lock().await = true;
@@ -69,25 +86,32 @@ impl FileState {
         &self.content
     }
 
+    pub fn stylized_ref(&self) -> &Arc<Mutex<StylizedVec>> {
+        &self.stylized
+    }
+
     pub async fn init<P: AsRef<Path>>(&mut self, path: P) -> AppResult<()> {
-        let mut file = fs::File::open(path.as_ref().to_owned()).await?;
+        let file = fs::File::open(path.as_ref().to_owned()).await?;
         let (tx, rx) = mpsc::unbounded_channel();
+        let content_ref = Arc::clone(&self.content);
 
-        let read_task = async {
-            let mut _content = String::new();
+        let read_task = async move {
+            let mut content = content_ref.lock().await;
+            let mut reader_lines = BufReader::new(file).lines();
 
-            // TODO: Modify to read line by line
-            file.read_to_string(&mut _content).await?;
+            while let Some(line) = reader_lines.next_line().await? {
+                content.push(line.to_owned());
 
-            if tx.is_closed() {
-                return Err(
-                    ErrorType::Specific(
-                        String::from("Channel closed when initializing file information")
-                    ).pack()
-                )
+                if tx.is_closed() {
+                    return Err(
+                        ErrorType::Specific(
+                            String::from("Channel closed when initializing file information")
+                        ).pack()
+                    )
+                }
+
+                tx.send(line).unwrap();
             }
-
-            tx.send(_content).unwrap();
 
             Ok::<(), AppError>(())
         };
@@ -99,7 +123,49 @@ impl FileState {
 
         read_result?;
         self.path = path.as_ref().to_path_buf();
-        (*self.content.lock().await, self.background_color) = parse_result?;
+        (*self.stylized.lock().await, self.background_color) = parse_result?;
+
+        Ok(())
+    }
+
+    pub async fn refresh_stylized(
+        &mut self,
+        start: usize,
+        line_nr: u16,
+    ) -> AppResult<()> {
+        let content = self.content.lock().await;
+
+        let end = if start + line_nr as usize > content.len() {
+            content.len()
+        } else {
+            start + line_nr as usize
+        };
+
+        let (tx, rx) = mpsc::unbounded_channel();
+
+        let sender_task = async move {
+            for line in content[start..end as usize].iter() {
+                if tx.is_closed() {
+                    return Err(
+                        ErrorType::Specific(
+                            String::from("Channel closed when initializing file information")
+                        ).pack()
+                    )
+                }
+
+                tx.send(line.to_owned()).unwrap();
+            }
+
+            Ok::<(), AppError>(())
+        };
+
+        let (sender_result, parse_result) = tokio::join!(
+            sender_task,
+            self.parse_content(self.path.to_owned(), rx)
+        );
+
+        sender_result?;
+        *self.stylized.lock().await = parse_result?.0;
 
         Ok(())
     }
@@ -107,15 +173,15 @@ impl FileState {
     async fn parse_content<'a, P>(
         &self,
         path: P,
-        mut rx: mpsc::UnboundedReceiver<String>
-    ) -> AppResult<(LineVec, Color)>
+        mut rx: mpsc::UnboundedReceiver<String>,
+    ) -> AppResult<(StylizedVec, Color)>
     where P: AsRef<Path>
     {
         let find_syntax = self.syntax_set.find_syntax_for_file(
             path.as_ref()
         )?;
 
-        let mut result: LineVec = Vec::new();
+        let mut result: StylizedVec = Vec::new();
         let mut get_bg = false;
         let mut background_color: Color = Color::default();
 
@@ -125,7 +191,7 @@ impl FileState {
             None
         };
 
-        if let Some(content) = rx.recv().await {
+        while let Some(content) = rx.recv().await {
             for line in LinesWithEndings::from(&content) {
                 // Highligth line
                 if let Some(ref mut _h) = h {
@@ -193,7 +259,7 @@ impl FileState {
         &mut self,
         from: u16,
         to: u16,
-        lines: Vec<String>
+        mut lines: Vec<String>
     ) -> AppResult<()>
     {
         let (from, to) = (from as usize, to as usize);
@@ -216,36 +282,25 @@ impl FileState {
         }
 
 
-        // Get highlighted lines
-        let (tx, rx) = mpsc::unbounded_channel();
-
-        tx.send(lines.join(""))
-            .expect("Error code 2 at modify_lines in file_state.rs!");
-
-        let mut highlighted_lines = self.parse_content(
-            self.path.to_owned(),
-            rx
-        ).await?.0;
-
         // Simply replace the original lines
         for i in from..=to {
             if i >= file_lines.len() {
                 // file_lines.push(highlighted_lines[i - from].to_owned());
-                file_lines.push(Self::pop_first(&mut highlighted_lines));
+                file_lines.push(Self::pop_first(&mut lines));
                 continue;
             }
 
-            if i - from >= highlighted_lines.len() {
+            if i - from >= lines.len() {
                 file_lines.remove(i);
                 continue;
             }
 
             // file_lines[i] = highlighted_lines[i - from].to_owned();
-            file_lines[i] = Self::pop_first(&mut highlighted_lines);
+            file_lines[i] = Self::pop_first(&mut lines);
         }
 
-        if !highlighted_lines.is_empty() {
-            for line in highlighted_lines.into_iter() {
+        if !lines.is_empty() {
+            for line in lines.into_iter() {
                 if to == file_lines.len() - 1 {
                     file_lines.push(line);
                     continue;
@@ -296,7 +351,7 @@ impl FileState {
         Ok(())
     }
 
-    fn pop_first(_vec: &mut Vec<ContentLine>) -> ContentLine {
+    fn pop_first(_vec: &mut Vec<String>) -> String {
         let element = _vec[0].to_owned();
         _vec.remove(0);
         element
@@ -308,6 +363,7 @@ impl Default for FileState {
         FileState {
             path: PathBuf::default(),
             content: Arc::new(Mutex::new(Vec::new())),
+            stylized: Arc::new(Mutex::new(Vec::new())),
             theme: ThemeSet::load_defaults().themes["base16-ocean.dark"].to_owned(),
             syntax_set: SyntaxSet::load_defaults_newlines(),
             background_color: Color::default(),
@@ -324,13 +380,26 @@ mod tests {
     fn parse_test() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
-            let mut file_state = FileState::default();
-            file_state.init(PathBuf::from("/home/spring/test.el")).await?;
+            // let mut file_state = FileState::default();
+            // file_state.init(PathBuf::from("/home/spring/test.el")).await?;
 
-            println!("{:#?}", file_state.content);
+            // println!("{:#?}", file_state.content);
             // file_state.reset().await;
 
             Ok::<(), AppError>(())
         }).unwrap();
+    }
+
+    #[test]
+    fn tokio_io_test() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+            let file = fs::File::open("/home/spring/test.el").await.unwrap();
+            let mut reader_line = BufReader::new(file).lines();
+
+            while let Some(line) = reader_line.next_line().await.unwrap() {
+                println!("{}", line);
+            }
+        });
     }
 }
