@@ -5,6 +5,8 @@ use tokio::runtime::Runtime;
 
 use crate::{app::App, command::CommandPrior, ui::ModalType};
 
+use super::CommandEdit;
+
 #[derive(Debug, Clone)]
 pub struct InfoLine<'a> {
     msg: Line<'a>,
@@ -30,6 +32,7 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
         let mut sign = None;
 
         loop {
+            // Error msg
             if !app.app_errors.empty() {
                 app.prior_command = CommandPrior::ConfirmError;
                 msg.push(Span::styled(
@@ -41,6 +44,7 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
                 break;
             }
 
+            // Ask msg
             if let Some(ref _msg) = app.ask_msg {
                 msg.push(Span::from(_msg.to_owned()));
                 msg.push(Span::from(" ("));
@@ -50,8 +54,34 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
                 break;
             }
 
-            // TODO: Add search input before modal
+            // Command Line Editing
+            if let CommandEdit::Some(ref content, ref cursor, _) = app.command_edit {
+                if *cursor == content.len() {
+                    msg.push(Span::from(content.to_owned()));
+                    msg.push(Span::styled(" ", Style::new().bg(Color::White)));
 
+                    break;
+                }
+
+                let mut i = 0;
+                for _char in content.chars() {
+                    msg.push(Span::styled(
+                        String::from(_char),
+                        if i == *cursor {
+                            Style::new().bg(Color::White)
+                                .fg(Color::Black)
+                        } else {
+                            Style::default()
+                        }
+                    ));
+
+                    i += 1;
+                }
+
+                break;
+            }
+
+            // Modal state display
             if app.editor_state.modal.modal() == ModalType::Insert {
                 msg.push(Span::styled(
                     String::from(" --INSERT--"),
@@ -59,6 +89,7 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
                 ));
             }
 
+            // File modification state
             if rt.block_on(app.file_state.not_save()) {
                 sign = Some(
                     Line::styled(

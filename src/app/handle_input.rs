@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 use crate::{
     command::{backward_char, insert_char, Command, CommandPrior},
     error::{AppResult, ErrorType},
-    ui::ModalType
+    ui::{CommandEdit, ModalType}
 };
 
 use super::App;
@@ -17,6 +17,12 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
         app.app_errors.throw();
 
         return Ok(())
+    }
+
+    if app.command_edit != CommandEdit::None {
+        if !CommandEdit::edit(app, key)? {
+            return Ok(())
+        }
     }
 
     if app.get_modal().modal() == ModalType::Insert {
@@ -36,13 +42,15 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
 
     rt.block_on(async {
         let prior_command = match app.prior_command {
-            CommandPrior::Mark => Some(Command::Mark(false)),
-            CommandPrior::Delete => Some(Command::Delete(false)),
-            CommandPrior::Change => Some(Command::Change),
-            CommandPrior::ReplaceChar => Some(Command::ReplaceChar),
-            CommandPrior::Quit(_) => Some(Command::Quit),
-            CommandPrior::ConfirmError => panic!("Unknow error!"),
-            CommandPrior::None => None,
+            CommandPrior::None            => None,
+            CommandPrior::Quit(_)         => Some(Command::Quit),
+            CommandPrior::Change          => Some(Command::Change),
+            CommandPrior::Mark            => Some(Command::Mark(false)),
+            CommandPrior::ReplaceChar     => Some(Command::ReplaceChar),
+            CommandPrior::Delete          => Some(Command::Delete(false)),
+            CommandPrior::Search(ref pat) => Some(Command::Search(Some(pat.to_owned()))),
+
+            CommandPrior::ConfirmError    => panic!("Unknow error!"),
         };
 
         if let Some(command) = prior_command {

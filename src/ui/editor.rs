@@ -180,6 +180,7 @@ impl StatefulWidget for Editor {
             buf.get_mut(current_point, buf_y).set_symbol("|");
             current_point += 1;
 
+            // TODO: Add highlight for searching content
             // TODO: Add display for marked content
             // Render content
             for (style, span) in line.get_iter() {

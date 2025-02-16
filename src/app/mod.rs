@@ -1,31 +1,38 @@
 // App
 
 mod handle_input;
+mod search;
 
-pub use handle_input::handle_input;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
     command::{Command, CommandPrior},
     config::Keymap,
     error::{AppError, AppResult, ErrorType},
-    fs::{FileState, LineVec},
-    ui::{Editor, EditorState}
+    fs::FileState,
+    ui::{CommandEdit, EditorState}
 };
+
+pub use handle_input::handle_input;
+pub use search::SearchIndicates;
 
 #[derive(Debug)]
 pub struct App {
+    keymap: Keymap,
+    search_result: Arc<Mutex<SearchIndicates>>,
+
     pub file_state: FileState,
 
     pub editor_state: EditorState,
 
     pub prior_command: CommandPrior,
 
-    keymap: Keymap,
-
     pub app_errors: AppError,
 
     pub ask_msg: Option<String>,
+    pub command_edit: CommandEdit,
+
     pub update_stylized: bool,
 }
 
@@ -38,7 +45,11 @@ impl App {
             app_errors: AppError::default(),
             prior_command: CommandPrior::None,
             ask_msg: None,
-            update_stylized: true
+            update_stylized: true,
+            command_edit: CommandEdit::None,
+            search_result: Arc::new(Mutex::new(
+                SearchIndicates::default()
+            ))
         }
     }
 
@@ -60,6 +71,10 @@ impl App {
 
     pub fn get_command(&self, key: crossterm::event::KeyCode) -> Option<Command> {
         self.keymap.keymap().get(&key).cloned()
+    }
+
+    pub fn search_ref(&self) -> &Arc<Mutex<SearchIndicates>> {
+        &self.search_result
     }
 
     pub async fn init_app(&mut self) -> AppResult<()> {

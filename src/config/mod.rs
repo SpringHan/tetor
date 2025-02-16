@@ -18,9 +18,11 @@ impl From<&str> for Command {
             "cancel_mark"   => Self::Mark(true),
             "mark"          => Self::Mark(false),
             "delete_char"   => Self::Delete(true),
+            "search"        => Self::Search(None),
             "delete"        => Self::Delete(false),
             "newline"       => Self::NewLine(command_slice[1] == "down"),
             "change_insert" => Self::ChangeInsert(command_slice[1].into()),
+            "search_jump"   => Self::SearchJump(command_slice[1] == "next"),
 
             "page_scroll" => {
                 let scroll_line = command_slice[1].parse::<isize>()
@@ -39,10 +41,6 @@ impl From<&str> for Command {
 
                 Self::Move(within_line, cursor_move)
             },
-
-            // TODO: Modify here
-            "search" => Self::Quit,
-            "search_jump" => Self::Quit,
 
             _ => panic!("Invalid command!")
         }

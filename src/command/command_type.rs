@@ -15,18 +15,18 @@ pub enum CursorMoveType {
 
 /// The prior command to be executed.
 /// When the value of this is not None, apply current key event for current prior command.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandPrior {
+    None,
     Mark,
     Delete,
     Change,
-    ReplaceChar,
     Quit(bool),
+    ReplaceChar,
     ConfirmError,
-    None
+    Search(String)
 }
 
-// TODO: Add search command
 #[derive(Debug, Clone)]
 pub enum Command {
     Save,
@@ -38,6 +38,8 @@ pub enum Command {
     Mark(bool),                 // Whether cancel mark
     Delete(bool),               // Whether delete char
     NewLine(bool),              // Whether open down a new line
+    Search(Option<String>),
+    SearchJump(bool),           // Whether jump to the next item
 
     PageScroll(isize),
     Move(bool, CursorMoveType),
@@ -128,7 +130,9 @@ impl Command {
             Command::NewLine(down)             => newline(app, down).await,
             Command::BackwardChar              => backward_char(app).await?,
             Command::ReplaceChar               => replace_char(app, key).await?,
+            Command::SearchJump(next)          => search_jump(app, next).await?,
             Command::PageScroll(move_line)     => page_scroll(app, move_line).await,
+            Command::Search(ref pattern)       => search(app, pattern.to_owned()).await?,
             Command::ChangeInsert(cursor_move) => change_insert(app, cursor_move).await?,
 
             Command::Move(within_line, cursor_move) => move_cursor(

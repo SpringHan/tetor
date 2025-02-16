@@ -1,6 +1,6 @@
 // Frame
 
-use crate::{app::App, error::AppResult};
+use crate::{app::App, error::{AppError, AppResult}};
 
 use ratatui::{layout::{Constraint, Direction, Layout}, Frame};
 use tokio::runtime::Runtime;
@@ -21,12 +21,21 @@ pub fn main_frame(frame: &mut Frame, app: &mut App, rt: &Runtime) -> AppResult<(
     // Update the content used to render
     let to_update = app.editor_state.update(main_layout[0]);
     if app.update_stylized || to_update {
-        rt.block_on(
+        rt.block_on(async {
             app.file_state.refresh_stylized(
                 app.editor_state.offset(),
                 main_layout[0].height
-            )
-        )?;
+            ).await?;
+
+            if app.update_stylized {
+                let mut search_ref = app.search_ref().lock().await;
+                if search_ref.has_history() {
+                    search_ref.clear();
+                }
+            }
+
+            Ok::<(), AppError>(())
+        })?;
 
         app.update_stylized = false;
     }

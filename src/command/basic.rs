@@ -4,7 +4,7 @@ use std::mem::swap;
 
 use crossterm::event::KeyCode;
 
-use crate::{app::App, error::{AppResult, ErrorType}};
+use crate::{app::App, error::{AppResult, ErrorType}, ui::CommandEdit};
 
 use super::{command_type::CursorMoveType, CommandPrior};
 
@@ -301,6 +301,7 @@ pub fn mark(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     Ok(false)
 }
 
+// TODO: To be integrated to escape_command
 pub fn cancel_mark(app: &mut App) -> bool {
     if app.editor_state.mark().is_some() {
         *app.editor_state.mark_mut() = None;
@@ -375,11 +376,95 @@ pub async fn backward_char(app: &mut App) -> AppResult<bool> {
     Ok(true)
 }
 
-pub async fn search(app: &mut App, pattern: String) -> AppResult<bool> {
+pub async fn search(app: &mut App, pattern: Option<String>) -> AppResult<bool> {
+    if pattern.is_none() {
+        app.command_edit = CommandEdit::new(
+            String::from("/"),
+            CommandPrior::Search(String::new())
+        );
+
+        return Ok(false)
+    }
+
+    let mut pat = pattern.unwrap();
+    if pat.starts_with("/") {
+        pat.remove(0);
+    }
+
     let content = app.file_state.content_ref().lock().await;
     let mut indicates: Vec<(u16, u16)> = Vec::new();
 
+    let mut line_nr = 0;
+    for line in content.iter() {
+        for indicate in line.match_indices(&pat) {
+            indicates.push((indicate.0 as u16, line_nr));
+        }
 
+        line_nr += 1;
+    }
+
+    if indicates.is_empty() {
+        app.prior_command = CommandPrior::None;
+        return Ok(false)
+    }
+
+    let mut search_result = app.search_ref().lock().await;
+    if search_result.has_history() {
+        search_result.clear();
+    }
+
+    search_result.replace(pat, indicates.into_iter());
+    drop(content);
+    drop(search_result);
+
+    app.prior_command = CommandPrior::None;
+    search_jump(app, true).await?;
+
+    Ok(false)
+}
+
+pub async fn search_jump(app: &mut App, next: bool) -> AppResult<bool> {
+    let mut search_ref = app.search_ref().lock().await;
+    let indicates = search_ref.indicates();
+
+    if indicates.is_empty() {
+        return Ok(false)
+    }
+
+    // Update current select index
+    let move_way = if next { 1 } else { -1 };
+
+    search_ref.selected = match search_ref.selected {
+        None => {
+            if next {
+                Some(indicates.len() - 1)
+            } else {
+                Some(0)
+            }
+        },
+        Some(i) => {
+            let idx_after = i as isize + move_way;
+            if idx_after < 0 {
+                Some(indicates.len() - 1)
+            } else if idx_after as usize == indicates.len() {
+                Some(0)
+            } else {
+                Some(idx_after as usize)
+            }
+        }
+    };
+
+    // Move cursor
+    let cursor = search_ref.current_indicate().unwrap();
+    drop(search_ref);
+
+    *app.editor_state.cursor_mut() = cursor;
+
+    Ok(false)
+}
+
+/// The general command binded for ESC key.
+pub async fn escape_command(app: &mut App) -> AppResult<bool> {
     Ok(false)
 }
 
