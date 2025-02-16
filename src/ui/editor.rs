@@ -1,6 +1,6 @@
 // Editord
 
-use ratatui::{style::{Color, Style}, widgets::StatefulWidget};
+use ratatui::{layout::Rect, style::{Color, Style}, widgets::StatefulWidget};
 use tokio::sync::Mutex;
 
 use std::sync::Arc;
@@ -75,6 +75,47 @@ impl EditorState {
     pub fn mark_mut(&mut self) -> &mut Option<(u16, u16)> {
         &mut self.mark_point
     }
+
+    pub fn update(&mut self, area: Rect) -> bool {
+        let mut to_update = false;
+
+        // Adjust window size
+        if self.editor_height.is_none() ||
+            self.editor_height.unwrap() != area.height as isize
+        {
+            if !self.editor_height.is_none() {
+                to_update = true;
+            }
+            self.editor_height = Some(area.height as isize);
+        }
+
+        // Adjust scroll_offset & cursor position.
+        if self.cursor_pos.1 < self.scroll_offset as u16 {
+            if self.scrolling {
+                self.cursor_pos.1 = self.scroll_offset as u16;
+            } else {
+                self.scroll_offset = self.cursor_pos.1 as usize;
+            }
+
+            to_update = true;
+        } else if self.cursor_pos.1 >= area.height + self.scroll_offset as u16 {
+            if self.scrolling {
+                self.cursor_pos.1 = self.scroll_offset as u16 + area.height - 1;
+            } else {
+                self.scroll_offset = (self.cursor_pos.1 - area.height / 2) as usize;
+            }
+
+            to_update = true;
+        }
+
+        // To avoid this variable make impact on other motion
+        // after page_scroll reached to edges.
+        if self.scrolling {
+            self.scrolling = false;
+        }
+
+        to_update
+    }
 }
 
 impl Editor {
@@ -90,13 +131,16 @@ impl Editor {
     fn nr_length<N: ToString>(nr: N) -> u8 {
         nr.to_string().chars().count() as u8
     }
+}
 
-    /// Core part for render lines.
-    fn render_core(
-        &mut self,
-        area: ratatui::prelude::Rect,
+impl StatefulWidget for Editor {
+    type State = EditorState;
+
+    fn render(
+        self,
+        area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &mut EditorState
+        state: &mut Self::State
     )
     {
         let text = self.lines.blocking_lock();
@@ -111,111 +155,67 @@ impl Editor {
             }
         };
 
+        // TODO: Pay attention to the lines that need to be displayed with multiple buf rows.
         // Render line number & content
-        let mut _y = 0;
+        let mut buf_y = 0;
         let mut file_line = state.scroll_offset;
-        while _y < area.height {
-            if let Some(line) = text.get(file_line) {
-                let mut current_length = 0;
-                let mut current_point = linenr_width as u16 + 1; // Current horizontal position in buf
-                let linenr_start = linenr_width - Self::nr_length(file_line + 1);
+        'whole: for line in text.iter() {
+            if buf_y >= area.height {
+                break;
+            }
 
-                // Render line number
-                buf.set_string(
-                    linenr_start as u16,
-                    _y,
-                    (file_line + 1).to_string(),
-                    Style::default()
-                );
+            let mut current_length = 0;
+            let mut current_point = linenr_width as u16 + 1; // Current horizontal position in buf
+            let linenr_start = linenr_width - Self::nr_length(file_line + 1);
 
-                // Render delimiter
-                buf.get_mut(current_point, _y).set_symbol("|");
-                current_point += 1;
+            // Render line number
+            buf.set_string(
+                linenr_start as u16,
+                buf_y,
+                (file_line + 1).to_string(),
+                Style::default()
+            );
 
-                // TODO: Add display for marked content
-                // Render content
-                for (style, span) in line.get_iter() {
-                    for _char in span.chars() {
-                        if current_point == area.width {
-                            _y += 1;
-                            if _y == area.height {
-                                break;
-                            }
+            // Render delimiter
+            buf.get_mut(current_point, buf_y).set_symbol("|");
+            current_point += 1;
 
-                            current_point = linenr_width as u16 + 2;
-                            buf.get_mut(current_point - 1, _y).set_symbol("|");
+            // TODO: Add display for marked content
+            // Render content
+            for (style, span) in line.get_iter() {
+                for _char in span.chars() {
+                    if current_point == area.width {
+                        buf_y += 1;
+                        if buf_y == area.height {
+                            break 'whole;
                         }
 
-                        let point_buf = buf.get_mut(current_point, _y);
-                        if _char != '\n' {
-                            point_buf.set_char(_char);
-                        }
-
-                        if self.render_cursor &&
-                            state.cursor_pos.0 == current_length &&
-                            state.cursor_pos.1 == file_line as u16
-                        {
-                            point_buf.bg = Color::White;
-                            point_buf.fg = self.background_color;
-                        } else {
-                            point_buf.set_style(*style);
-                        }
-
-                        current_point += 1;
-                        current_length += 1;
+                        current_point = linenr_width as u16 + 2;
+                        buf.get_mut(current_point - 1, buf_y).set_symbol("|");
                     }
+
+                    let point_buf = buf.get_mut(current_point, buf_y);
+                    if _char != '\n' {
+                        point_buf.set_char(_char);
+                    }
+
+                    if self.render_cursor &&
+                        state.cursor_pos.0 == current_length &&
+                        state.cursor_pos.1 == file_line as u16
+                    {
+                        point_buf.bg = Color::White;
+                        point_buf.fg = self.background_color;
+                    } else {
+                        point_buf.set_style(*style);
+                    }
+
+                    current_point += 1;
+                    current_length += 1;
                 }
-
-                _y += 1;
-                file_line += 1;
-
-                continue;
             }
 
-            break;
+            buf_y += 1;
+            file_line += 1;
         }
-    }
-}
-
-impl StatefulWidget for Editor {
-    type State = EditorState;
-
-    fn render(
-        mut self,
-        area: ratatui::prelude::Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        state: &mut Self::State
-    )
-    {
-        // Adjust window size
-        if state.editor_height.is_none() ||
-            state.editor_height.unwrap() != area.height as isize
-        {
-            state.editor_height = Some(area.height as isize);
-        }
-
-        // Adjust scroll_offset & cursor position.
-        if state.cursor_pos.1 < state.scroll_offset as u16 {
-            if state.scrolling {
-                state.cursor_pos.1 = state.scroll_offset as u16;
-            } else {
-                state.scroll_offset = state.cursor_pos.1 as usize;
-            }
-        } else if state.cursor_pos.1 >= area.height + state.scroll_offset as u16 {
-            if state.scrolling {
-                state.cursor_pos.1 = state.scroll_offset as u16 + area.height - 1;
-            } else {
-                state.scroll_offset = (state.cursor_pos.1 - area.height / 2) as usize;
-            }
-        }
-
-        // To avoid this variable make impact on other motion
-        // after page_scroll reached to edges.
-        if state.scrolling {
-            state.scrolling = false;
-        }
-
-        // Render editor view & cursor
-        self.render_core(area, buf, state);
     }
 }

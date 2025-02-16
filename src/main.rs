@@ -10,7 +10,7 @@ use std::io::stderr;
 
 use app::{handle_input, App};
 use crossterm::event::{self, KeyEventKind};
-use error::AppResult;
+use error::{AppError, AppResult};
 use ratatui::{
     Terminal,
     backend::CrosstermBackend
@@ -43,7 +43,15 @@ fn main() -> AppResult<()> {
     execute!(stderr(), EnterAlternateScreen)?;
 
     loop {
-        terminal.draw(|frame| ui::main_frame(frame, &mut app, &rt))?;
+        terminal.draw(|frame| {
+            match ui::main_frame(frame, &mut app, &rt) {
+                Ok(_) => (),
+                Err(err) => {
+                    println!("{}", err.to_string());
+                    panic!("See error generated above from rendering frame.")
+                },
+            }
+        })?;
 
         if app.prior_command == command::CommandPrior::Quit(true) {
             break;

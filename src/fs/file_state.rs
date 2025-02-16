@@ -99,7 +99,8 @@ impl FileState {
             let mut content = content_ref.lock().await;
             let mut reader_lines = BufReader::new(file).lines();
 
-            while let Some(line) = reader_lines.next_line().await? {
+            while let Some(mut line) = reader_lines.next_line().await? {
+                line.push('\n');
                 content.push(line.to_owned());
 
                 if tx.is_closed() {
@@ -134,6 +135,7 @@ impl FileState {
         line_nr: u16,
     ) -> AppResult<()> {
         let content = self.content.lock().await;
+        // println!("{} {}", start, line_nr);
 
         let end = if start + line_nr as usize > content.len() {
             content.len()
@@ -141,10 +143,12 @@ impl FileState {
             start + line_nr as usize
         };
 
+        // println!("{}", end);
+
         let (tx, rx) = mpsc::unbounded_channel();
 
         let sender_task = async move {
-            for line in content[start..end as usize].iter() {
+            for line in content[start..end].iter() {
                 if tx.is_closed() {
                     return Err(
                         ErrorType::Specific(
@@ -165,7 +169,10 @@ impl FileState {
         );
 
         sender_result?;
-        *self.stylized.lock().await = parse_result?.0;
+
+        let mut stylized = self.stylized.lock().await;
+        stylized.clear();
+        stylized.extend(parse_result?.0.into_iter());
 
         Ok(())
     }
@@ -245,12 +252,7 @@ impl FileState {
             )
         }
 
-        Ok(
-            file_lines[from..=to].to_owned()
-                .into_iter()
-                .map(|line| line.into())
-                .collect::<Vec<String>>()
-        )
+        Ok(file_lines[from..=to].to_owned())
     }
 
     /// Modify lines with modified lines & range.
@@ -326,7 +328,7 @@ impl FileState {
 
         let destyle_task = async {
             for line in self.content.lock().await.iter() {
-                tx.send(line.to_owned().into())
+                tx.send(line.to_owned())
                     .expect("Error code 3 at save_content in file_state.rs!");
             }
         };
@@ -380,26 +382,12 @@ mod tests {
     fn parse_test() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
-            // let mut file_state = FileState::default();
-            // file_state.init(PathBuf::from("/home/spring/test.el")).await?;
+            let mut file_state = FileState::default();
+            file_state.init(PathBuf::from("/home/spring/test.el")).await?;
 
-            // println!("{:#?}", file_state.content);
-            // file_state.reset().await;
+            println!("{:#?}", file_state.content);
 
             Ok::<(), AppError>(())
         }).unwrap();
-    }
-
-    #[test]
-    fn tokio_io_test() {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        runtime.block_on(async {
-            let file = fs::File::open("/home/spring/test.el").await.unwrap();
-            let mut reader_line = BufReader::new(file).lines();
-
-            while let Some(line) = reader_line.next_line().await.unwrap() {
-                println!("{}", line);
-            }
-        });
     }
 }

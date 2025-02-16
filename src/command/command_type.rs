@@ -118,8 +118,10 @@ impl CursorMoveType {
 }
 
 impl Command {
-    pub async fn execute(&self, app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
-        match *self {
+    // NOTE: Every command will return a boolean value. When it's true, update the
+    // stylized content.
+    pub async fn execute(&self, app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
+        Ok(match *self {
             Command::Save                      => save(app).await?,
             Command::Quit                      => quit(app, key).await,
             Command::Change                    => change(app, key).await?,
@@ -137,7 +139,7 @@ impl Command {
 
             Command::Mark(_cancel_mark) => {
                 if _cancel_mark {
-                    cancel_mark(app);
+                    cancel_mark(app)
                 } else {
                     mark(app, key)?
                 }
@@ -145,13 +147,11 @@ impl Command {
 
             Command::Delete(_delete_char) => {
                 if _delete_char {
-                    delete_char(app).await?;
+                    delete_char(app).await?
                 } else {
-                    delete(app, key).await?;
+                    delete(app, key).await?
                 }
             }
-        }
-
-        Ok(())
+        })
     }
 }

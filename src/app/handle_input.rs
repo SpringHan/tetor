@@ -20,13 +20,16 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
     }
 
     if app.get_modal().modal() == ModalType::Insert {
-        match key {
+        app.update_stylized = match key {
             KeyCode::Char(_key) => rt.block_on(insert_char(app, _key))?,
-            KeyCode::Esc => app.get_modal().switch_normal(),
             KeyCode::Backspace => rt.block_on(backward_char(app))?,
             KeyCode::Enter => rt.block_on(insert_char(app, '\n'))?,
-            _ => (),
-        }
+            KeyCode::Esc => {
+                app.get_modal().switch_normal();
+                return Ok(());
+            },
+            _ => false,
+        };
 
         return Ok(())
     }
@@ -43,13 +46,13 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
         };
 
         if let Some(command) = prior_command {
-            command.execute(app, Some(key)).await?;
+            app.update_stylized = command.execute(app, Some(key)).await?;
 
             return Ok(())
         }
 
         if let Some(command) = app.get_command(key) {
-            command.execute(app, None).await?;
+            app.update_stylized = command.execute(app, None).await?;
 
             return Ok(())
         }

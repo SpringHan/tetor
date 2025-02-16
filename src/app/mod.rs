@@ -13,8 +13,6 @@ use crate::{
     ui::{Editor, EditorState}
 };
 
-use std::{path::{Path, PathBuf}, sync::Arc};
-
 #[derive(Debug)]
 pub struct App {
     pub file_state: FileState,
@@ -27,7 +25,8 @@ pub struct App {
 
     pub app_errors: AppError,
 
-    pub ask_msg: Option<String>
+    pub ask_msg: Option<String>,
+    pub update_stylized: bool,
 }
 
 impl App {
@@ -38,7 +37,8 @@ impl App {
             editor_state: EditorState::default(),
             app_errors: AppError::default(),
             prior_command: CommandPrior::None,
-            ask_msg: None
+            ask_msg: None,
+            update_stylized: false
         }
     }
 

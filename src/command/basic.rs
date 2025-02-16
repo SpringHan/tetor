@@ -11,21 +11,21 @@ use super::{command_type::CursorMoveType, CommandPrior};
 pub async fn change_insert(
     app: &mut App,
     cursor_move: CursorMoveType
-) -> AppResult<()>
+) -> AppResult<bool>
 {
     // TODO: add check for mark point
     app.get_modal().switch_insert();
 
     move_cursor(app, true, cursor_move).await?;
 
-    Ok(())
+    Ok(false)
 }
 
 pub async fn move_cursor(
     app: &mut App,
     within_line: bool,
     cursor_move: CursorMoveType
-) -> AppResult<()>
+) -> AppResult<bool>
 {
     *app.editor_state.cursor_mut() = cursor_move.after_move(
         within_line,
@@ -33,10 +33,10 @@ pub async fn move_cursor(
         &mut app.file_state
     ).await?;
 
-    Ok(())
+    Ok(false)
 }
 
-pub async fn page_scroll(app: &mut App, scroll: isize) {
+pub async fn page_scroll(app: &mut App, scroll: isize) -> bool {
     let editor_state = &mut app.editor_state;
     let scroll_after = (editor_state.offset() as isize) + (scroll * editor_state.height());
 
@@ -44,7 +44,7 @@ pub async fn page_scroll(app: &mut App, scroll: isize) {
         *editor_state.offset_mut() = 0;
         editor_state.scrolling = true;
 
-        return ()
+        return true
     }
 
 
@@ -54,7 +54,7 @@ pub async fn page_scroll(app: &mut App, scroll: isize) {
     let max_offset = file_length - editor_state.height();
 
     if max_offset < 0 {
-        return ()
+        return false
     }
 
     *editor_state.offset_mut() = if scroll_after >= max_offset as usize {
@@ -64,9 +64,11 @@ pub async fn page_scroll(app: &mut App, scroll: isize) {
     };
 
     app.editor_state.scrolling = true;
+
+    true
 }
 
-pub async fn insert_char(app: &mut App, key: char) -> AppResult<()> {
+pub async fn insert_char(app: &mut App, key: char) -> AppResult<bool> {
     let cursor_pos = app.editor_state.cursor();
     let mut edit_line = app.file_state.get_lines(
         cursor_pos.1,
@@ -85,15 +87,15 @@ pub async fn insert_char(app: &mut App, key: char) -> AppResult<()> {
         let cursor = app.editor_state.cursor_mut();
         cursor.0 = 0;
         cursor.1 += 1;
-        return Ok(())
+        return Ok(true)
     }
 
     app.editor_state.cursor_mut().0 += 1;
 
-    Ok(())
+    Ok(true)
 }
 
-pub async fn delete_char(app: &mut App) -> AppResult<()> {
+pub async fn delete_char(app: &mut App) -> AppResult<bool> {
     let cursor = app.editor_state.cursor();
     let mut current_line = app.file_state
         .get_lines(cursor.1, cursor.1)
@@ -109,7 +111,7 @@ pub async fn delete_char(app: &mut App) -> AppResult<()> {
         }
 
         app.file_state.file_modify().await;
-        return Ok(())
+        return Ok(true)
     }
 
     current_line[0].remove(cursor.0 as usize);
@@ -117,14 +119,14 @@ pub async fn delete_char(app: &mut App) -> AppResult<()> {
     app.file_state.modify_lines(cursor.1, cursor.1, current_line).await?;
     app.file_state.file_modify().await;
 
-    Ok(())
+    Ok(true)
 }
 
-pub async fn replace_char(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
+pub async fn replace_char(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     if key.is_none() {
         app.prior_command = CommandPrior::ReplaceChar;
 
-        return Ok(())
+        return Ok(false)
     }
 
     app.prior_command = CommandPrior::None;
@@ -149,10 +151,10 @@ pub async fn replace_char(app: &mut App, key: Option<KeyCode>) -> AppResult<()> 
         ).await?;
     }
 
-    Ok(())
+    Ok(true)
 }
 
-pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
+pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     let state = &mut app.editor_state;
     let cursor = state.cursor();
 
@@ -161,7 +163,7 @@ pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
             Some(mark_pos) => {
                 if mark_pos == cursor {
                     *state.mark_mut() = None;
-                    return Ok(())
+                    return Ok(false)
                 }
 
                 // Delete marked region
@@ -185,13 +187,14 @@ pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
 
                 app.file_state.modify_lines(start.1, end.1, vec![new_line]).await?;
                 *state.cursor_mut() = start;
+
+                return Ok(true)
             },
             None => {
                 app.prior_command = CommandPrior::Delete;
+                return Ok(false)
             },
         }
-
-        return Ok(())
 	  }
 
     // NOTE: Avoid the occurred error makes this value cannot be reset.
@@ -223,7 +226,7 @@ pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
 
     state.cursor_mut().0 = 0;
 
-    Ok(())
+    Ok(true)
 }
 
 #[inline]
@@ -239,9 +242,9 @@ where T: PartialEq + PartialOrd + Copy
     }
 }
 
-pub async fn change(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
+pub async fn change(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     if key.is_none() {
-        delete(app, None).await?;
+        let to_update = delete(app, None).await?;
 
         if app.prior_command == CommandPrior::Delete {
             app.prior_command = CommandPrior::Change;
@@ -249,12 +252,12 @@ pub async fn change(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
             app.editor_state.modal.switch_insert();
         }
 
-        return Ok(())
+        return Ok(to_update)
     }
 
     app.prior_command = CommandPrior::None;
 
-    match key.unwrap() {
+    let to_update = match key.unwrap() {
         KeyCode::Char('c') => delete(app, Some(KeyCode::Char('d'))).await?,
         KeyCode::Tab => delete(app, Some(KeyCode::Tab)).await?,
         _ => return Err(
@@ -262,18 +265,18 @@ pub async fn change(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
                 String::from("Invalid key command")
             ).pack()
         )
-    }
+    };
 
     app.editor_state.modal.switch_insert();
 
-    Ok(())
+    Ok(to_update)
 }
 
-pub fn mark(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
+pub fn mark(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     if key.is_none() {
         app.prior_command = CommandPrior::Mark;
 
-        return Ok(())
+        return Ok(false)
     }
 
     app.prior_command = CommandPrior::None;
@@ -295,16 +298,18 @@ pub fn mark(app: &mut App, key: Option<KeyCode>) -> AppResult<()> {
         )
     }
 
-    Ok(())
+    Ok(false)
 }
 
-pub fn cancel_mark(app: &mut App) {
+pub fn cancel_mark(app: &mut App) -> bool {
     if app.editor_state.mark().is_some() {
         *app.editor_state.mark_mut() = None;
     }
+
+    false
 }
 
-pub async fn newline(app: &mut App, down: bool) {
+pub async fn newline(app: &mut App, down: bool) -> bool {
     let mut file_content = app.file_state.content_ref().lock().await;
     let cursor = app.editor_state.cursor();
     let mut line_after = cursor.1 as usize;
@@ -323,21 +328,22 @@ pub async fn newline(app: &mut App, down: bool) {
         drop(file_content);
 
         app.get_modal().switch_insert();
-        return ()
+        return true
     }
 
     file_content.insert(line_after, new_line);
     drop(file_content);
 
     app.get_modal().switch_insert();
+    true
 }
 
-pub async fn backward_char(app: &mut App) -> AppResult<()> {
+pub async fn backward_char(app: &mut App) -> AppResult<bool> {
     let cursor = app.editor_state.cursor();
 
     if cursor.0 == 0 {
         if cursor.1 == 0 {
-            return Ok(())
+            return Ok(false)
         }
 
         // let mut file_content = app.file_state.content_ref().lock().await;
@@ -355,7 +361,7 @@ pub async fn backward_char(app: &mut App) -> AppResult<()> {
         ).await?;
 
         app.file_state.file_modify().await;
-        return Ok(())
+        return Ok(true)
     }
 
     let mut modified_line = app.file_state.get_lines(cursor.1, cursor.1).await?;
@@ -366,21 +372,21 @@ pub async fn backward_char(app: &mut App) -> AppResult<()> {
     app.file_state.file_modify().await;
     app.editor_state.cursor_mut().0 -= 1;
 
-    Ok(())
+    Ok(true)
 }
 
-pub async fn search(app: &mut App, regex: String) -> AppResult<()> {
+pub async fn search(app: &mut App, regex: String) -> AppResult<bool> {
 
-    Ok(())
+    Ok(false)
 }
 
-pub async fn save(app: &mut App) -> AppResult<()> {
+pub async fn save(app: &mut App) -> AppResult<bool> {
     app.file_state.save_content().await?;
 
-    Ok(())
+    Ok(false)
 }
 
-pub async fn quit(app: &mut App, key: Option<KeyCode>) {
+pub async fn quit(app: &mut App, key: Option<KeyCode>) -> bool {
     if key.is_none() {
         if app.file_state.not_save().await {
             app.prior_command = CommandPrior::Quit(false);
@@ -389,7 +395,7 @@ pub async fn quit(app: &mut App, key: Option<KeyCode>) {
             app.prior_command = CommandPrior::Quit(true);
         }
 
-        return ()
+        return false
     }
 
     app.prior_command = CommandPrior::None;
@@ -400,4 +406,6 @@ pub async fn quit(app: &mut App, key: Option<KeyCode>) {
             app.prior_command = CommandPrior::Quit(true);
         }
     }
+
+    false
 }
