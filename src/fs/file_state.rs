@@ -6,7 +6,7 @@ use crate::error::{self, AppError, AppResult, ErrorType};
 use ratatui::style::{Color, Style};
 use tokio::{fs, sync::Mutex};
 use tokio::sync::mpsc;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use syntect::{
     parsing::SyntaxSet,
@@ -36,7 +36,7 @@ pub struct StylizeRange {
 // TODO: Do not load all the file when the file is too large
 #[derive(Debug)]
 pub struct FileState {
-    pub background_color: Color,
+    pub background_color: Option<Color>,
     content: Arc<Mutex<LineVec>>,
     stylized: Arc<Mutex<StylizedVec>>,
 
@@ -92,39 +92,22 @@ impl FileState {
 
     pub async fn init<P: AsRef<Path>>(&mut self, path: P) -> AppResult<()> {
         let file = fs::File::open(path.as_ref().to_owned()).await?;
-        let (tx, rx) = mpsc::unbounded_channel();
         let content_ref = Arc::clone(&self.content);
 
-        let read_task = async move {
+        let read_result = tokio::join!(async move {
             let mut content = content_ref.lock().await;
             let mut reader_lines = BufReader::new(file).lines();
 
             while let Some(mut line) = reader_lines.next_line().await? {
                 line.push('\n');
                 content.push(line.to_owned());
-
-                if tx.is_closed() {
-                    return Err(
-                        ErrorType::Specific(
-                            String::from("Channel closed when initializing file information")
-                        ).pack()
-                    )
-                }
-
-                tx.send(line).unwrap();
             }
 
             Ok::<(), AppError>(())
-        };
+        });
 
-        let (read_result, parse_result) = tokio::join!(
-            read_task,
-            self.parse_content(path.as_ref().to_owned(), rx)
-        );
-
-        read_result?;
+        read_result.0?;
         self.path = path.as_ref().to_path_buf();
-        (*self.stylized.lock().await, self.background_color) = parse_result?;
 
         Ok(())
     }
@@ -135,7 +118,6 @@ impl FileState {
         line_nr: u16,
     ) -> AppResult<()> {
         let content = self.content.lock().await;
-        // println!("{} {}", start, line_nr);
 
         let end = if start + line_nr as usize > content.len() {
             content.len()
@@ -143,10 +125,8 @@ impl FileState {
             start + line_nr as usize
         };
 
-        // println!("{}", end);
-
+        // Parse content
         let (tx, rx) = mpsc::unbounded_channel();
-
         let sender_task = async move {
             for line in content[start..end].iter() {
                 if tx.is_closed() {
@@ -169,14 +149,21 @@ impl FileState {
         );
 
         sender_result?;
+        let parse_result = parse_result?;
+
+        // Update variables
+        if self.background_color.is_none() {
+            self.background_color = Some(parse_result.1);
+        }
 
         let mut stylized = self.stylized.lock().await;
         stylized.clear();
-        stylized.extend(parse_result?.0.into_iter());
+        stylized.extend(parse_result.0.into_iter());
 
         Ok(())
     }
 
+    // TODO: Use string as parameter rather than channel when there's no need
     async fn parse_content<'a, P>(
         &self,
         path: P,
@@ -368,7 +355,7 @@ impl Default for FileState {
             stylized: Arc::new(Mutex::new(Vec::new())),
             theme: ThemeSet::load_defaults().themes["base16-ocean.dark"].to_owned(),
             syntax_set: SyntaxSet::load_defaults_newlines(),
-            background_color: Color::default(),
+            background_color: None,
             file_modified: Arc::new(Mutex::new(false))
         }
     }

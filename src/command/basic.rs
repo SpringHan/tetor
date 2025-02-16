@@ -375,7 +375,10 @@ pub async fn backward_char(app: &mut App) -> AppResult<bool> {
     Ok(true)
 }
 
-pub async fn search(app: &mut App, regex: String) -> AppResult<bool> {
+pub async fn search(app: &mut App, pattern: String) -> AppResult<bool> {
+    let content = app.file_state.content_ref().lock().await;
+    let mut indicates: Vec<(u16, u16)> = Vec::new();
+
 
     Ok(false)
 }

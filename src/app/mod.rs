@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use crate::{
     command::{Command, CommandPrior},
     config::Keymap,
-    error::{AppError, AppResult},
+    error::{AppError, AppResult, ErrorType},
     fs::{FileState, LineVec},
     ui::{Editor, EditorState}
 };
@@ -38,12 +38,20 @@ impl App {
             app_errors: AppError::default(),
             prior_command: CommandPrior::None,
             ask_msg: None,
-            update_stylized: false
+            update_stylized: true
         }
     }
 
-    pub fn get_bg(&self) -> ratatui::style::Color {
-        self.file_state.background_color
+    pub fn get_bg(&self) -> AppResult<ratatui::style::Color> {
+        if let Some(color) = self.file_state.background_color {
+            return Ok(color)
+        }
+
+        Err(
+            ErrorType::Specific(
+                String::from("Failed to get background color!")
+            ).pack()
+        )
     }
 
     pub fn get_modal(&mut self) -> &mut crate::ui::Modal {
