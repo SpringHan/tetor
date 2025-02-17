@@ -9,20 +9,21 @@ impl From<&str> for Command {
         let command_slice = value.split(" ").collect::<Vec<_>>();
 
         match command_slice[0] {
-            "save"          => Self::Save,
-            "quit"          => Self::Quit,
-            "change"        => Self::Change,
-            "replace_char"  => Self::ReplaceChar,
-            "backward_char" => Self::BackwardChar,
+            "save"           => Self::Save,
+            "quit"           => Self::Quit,
+            "change"         => Self::Change,
+            "replace_char"   => Self::ReplaceChar,
+            "backward_char"  => Self::BackwardChar,
+            "escape_command" => Self::EscapeCommand,
 
-            "cancel_mark"   => Self::Mark(true),
-            "mark"          => Self::Mark(false),
-            "delete_char"   => Self::Delete(true),
-            "search"        => Self::Search(None),
-            "delete"        => Self::Delete(false),
-            "newline"       => Self::NewLine(command_slice[1] == "down"),
-            "change_insert" => Self::ChangeInsert(command_slice[1].into()),
-            "search_jump"   => Self::SearchJump(command_slice[1] == "next"),
+            "cancel_mark"    => Self::Mark(true),
+            "mark"           => Self::Mark(false),
+            "delete_char"    => Self::Delete(true),
+            "search"         => Self::Search(None),
+            "delete"         => Self::Delete(false),
+            "newline"        => Self::NewLine(command_slice[1] == "down"),
+            "change_insert"  => Self::ChangeInsert(command_slice[1].into()),
+            "search_jump"    => Self::SearchJump(command_slice[1] == "next"),
 
             "page_scroll" => {
                 let scroll_line = command_slice[1].parse::<isize>()

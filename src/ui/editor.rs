@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 
 use std::sync::Arc;
 
-use crate::fs::StylizedVec;
+use crate::{app::SearchIndicates, fs::StylizedVec};
 
 use super::modal::Modal;
 
@@ -25,9 +25,10 @@ pub struct EditorState {
     pub scrolling: bool
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Editor {
     lines: Arc<Mutex<StylizedVec>>,
+    search_indicates: Arc<Mutex<SearchIndicates>>,
     background_color: Color,
     render_cursor: bool
 }
@@ -119,9 +120,15 @@ impl EditorState {
 }
 
 impl Editor {
-    pub fn new(content: Arc<Mutex<StylizedVec>>, bg: Color, render_cursor: bool) -> Self {
+    pub fn new(
+        content: Arc<Mutex<StylizedVec>>,
+        indicates: Arc<Mutex<SearchIndicates>>,
+        bg: Color,
+        render_cursor: bool
+    ) -> Self {
         Editor {
             lines: content,
+            search_indicates: indicates,
             background_color: bg,
             render_cursor
         }
@@ -144,6 +151,7 @@ impl StatefulWidget for Editor {
     )
     {
         let text = self.lines.blocking_lock();
+        let indicates = self.search_indicates.blocking_lock();
 
         // Update linenr_width
         let linenr_width = {
@@ -180,7 +188,6 @@ impl StatefulWidget for Editor {
             buf.get_mut(current_point, buf_y).set_symbol("|");
             current_point += 1;
 
-            // TODO: Add highlight for searching content
             // TODO: Add display for marked content
             // Render content
             for (style, span) in line.get_iter() {
@@ -200,14 +207,35 @@ impl StatefulWidget for Editor {
                         point_buf.set_char(_char);
                     }
 
-                    if self.render_cursor &&
-                        state.cursor_pos.0 == current_length &&
-                        state.cursor_pos.1 == file_line as u16
-                    {
-                        point_buf.bg = Color::White;
-                        point_buf.fg = self.background_color;
-                    } else {
+                    loop {
+                        // Cursor
+                        if self.render_cursor &&
+                            state.cursor_pos.0 == current_length &&
+                            state.cursor_pos.1 == file_line as u16
+                        {
+                            point_buf.bg = Color::White;
+                            point_buf.fg = self.background_color;
+                            break;
+                        }
+
+                        // Search indicates
+                        if indicates.indicates_find((
+                            current_length,
+                            file_line as u16
+                        ))
+                        {
+                            point_buf.bg = if let Some(color) = style.fg {
+                                color
+                            } else {
+                                Color::White
+                            };
+                            point_buf.fg = self.background_color;
+
+                            break;
+                        }
+
                         point_buf.set_style(*style);
+                        break;
                     }
 
                     current_point += 1;

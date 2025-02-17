@@ -409,11 +409,7 @@ pub async fn search(app: &mut App, pattern: Option<String>) -> AppResult<bool> {
     }
 
     let mut search_result = app.search_ref().lock().await;
-    if search_result.has_history() {
-        search_result.clear();
-    }
-
-    search_result.replace(pat, indicates.into_iter());
+    search_result.set(pat, indicates.into_iter());
     drop(content);
     drop(search_result);
 
@@ -434,12 +430,12 @@ pub async fn search_jump(app: &mut App, next: bool) -> AppResult<bool> {
     // Update current select index
     let move_way = if next { 1 } else { -1 };
 
-    search_ref.selected = match search_ref.selected {
+    *search_ref.selected_mut() = match search_ref.selected() {
         None => {
             if next {
-                Some(indicates.len() - 1)
-            } else {
                 Some(0)
+            } else {
+                Some(indicates.len() - 1)
             }
         },
         Some(i) => {
@@ -465,6 +461,11 @@ pub async fn search_jump(app: &mut App, next: bool) -> AppResult<bool> {
 
 /// The general command binded for ESC key.
 pub async fn escape_command(app: &mut App) -> AppResult<bool> {
+    let mut search_ref = app.search_ref().lock().await;
+    if search_ref.has_history() {
+        search_ref.clear();
+    }
+
     Ok(false)
 }
 

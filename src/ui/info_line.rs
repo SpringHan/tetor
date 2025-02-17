@@ -1,6 +1,12 @@
 // Info Line
 
-use ratatui::{layout::Alignment, style::{Color, Modifier, Style}, text::{Line, Span}, widgets::{Paragraph, Widget}};
+use ratatui::{
+    layout::Alignment,
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::Widget
+};
+
 use tokio::runtime::Runtime;
 
 use crate::{app::App, command::CommandPrior, ui::ModalType};
@@ -10,7 +16,7 @@ use super::CommandEdit;
 #[derive(Debug, Clone)]
 pub struct InfoLine<'a> {
     msg: Line<'a>,
-    modified_sign: Option<Line<'a>>
+    modified_sign: Line<'a>
 }
 
 impl<'a> InfoLine<'a> {
@@ -29,7 +35,7 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
         let rt = value.1;
         let app = value.0;
         let mut msg: Vec<Span> = Vec::new();
-        let mut sign = None;
+        let mut sign: Vec<Span> = Vec::new();
 
         loop {
             // Error msg
@@ -89,22 +95,31 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
                 ));
             }
 
-            // File modification state
-            if rt.block_on(app.file_state.not_save()) {
-                sign = Some(
-                    Line::styled(
-                        "*  ",
-                        Style::new().add_modifier(Modifier::BOLD)
-                    ).alignment(Alignment::Right)
-                );
+            let search_ref = app.search_ref().blocking_lock();
+            if search_ref.has_history() && search_ref.selected() != None {
+                sign.push(Span::from(format!(
+                    "[{}/{}] ",
+                    search_ref.selected().unwrap(),
+                    search_ref.indicates().len()
+                )));
             }
+
+            // File modification state
+            sign.push(Span::styled(
+                if rt.block_on(app.file_state.not_save()) {
+                    "*  "    
+                } else {
+                    "   "
+                },
+                Style::new().add_modifier(Modifier::BOLD)
+            ));
 
             break;
         }
 
         Self {
             msg: Line::from(msg).alignment(Alignment::Left),
-            modified_sign: sign
+            modified_sign: Line::from(sign).alignment(Alignment::Right)
         }
     }
 }

@@ -34,6 +34,7 @@ pub enum Command {
     Change,
     ReplaceChar,
     BackwardChar,
+    EscapeCommand,
 
     Mark(bool),                 // Whether cancel mark
     Delete(bool),               // Whether delete char
@@ -129,6 +130,7 @@ impl Command {
             Command::Change                    => change(app, key).await?,
             Command::NewLine(down)             => newline(app, down).await,
             Command::BackwardChar              => backward_char(app).await?,
+            Command::EscapeCommand             => escape_command(app).await?,
             Command::ReplaceChar               => replace_char(app, key).await?,
             Command::SearchJump(next)          => search_jump(app, next).await?,
             Command::PageScroll(move_line)     => page_scroll(app, move_line).await,

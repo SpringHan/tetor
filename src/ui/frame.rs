@@ -1,5 +1,7 @@
 // Frame
 
+use std::sync::Arc;
+
 use crate::{app::App, error::{AppError, AppResult}};
 
 use ratatui::{layout::{Constraint, Direction, Layout}, Frame};
@@ -42,7 +44,8 @@ pub fn main_frame(frame: &mut Frame, app: &mut App, rt: &Runtime) -> AppResult<(
 
     // Render frame
     let editor = Editor::new(
-        std::sync::Arc::clone(app.file_state.stylized_ref()),
+        Arc::clone(app.file_state.stylized_ref()),
+        Arc::clone(app.search_ref()),
         app.get_bg()?,
         app.app_errors.empty()
     );
