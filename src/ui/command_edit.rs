@@ -2,7 +2,11 @@
 
 use crossterm::event::KeyCode;
 
-use crate::{app::App, command::CommandPrior, error::{AppResult, ErrorType}};
+use crate::{
+    app::App,
+    command::CommandPrior,
+    error::{AppResult, ErrorType}
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum CommandEdit {

@@ -1,8 +1,8 @@
 mod keymap;
 
-pub use keymap::Keymap;
-
 use crate::command::{Command, CursorMoveType};
+
+pub use keymap::Keymap;
 
 impl From<&str> for Command {
     fn from(value: &str) -> Self {

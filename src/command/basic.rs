@@ -4,7 +4,11 @@ use std::mem::swap;
 
 use crossterm::event::KeyCode;
 
-use crate::{app::App, error::{AppResult, ErrorType}, ui::CommandEdit};
+use crate::{
+    app::App,
+    error::{AppResult, ErrorType},
+    ui::CommandEdit
+};
 
 use super::{command_type::CursorMoveType, CommandPrior};
 
@@ -408,13 +412,17 @@ pub async fn search(app: &mut App, pattern: Option<String>) -> AppResult<bool> {
         return Ok(false)
     }
 
+
+    // Select the next nearest item
+    let cursor = app.editor_state.cursor();
     let mut search_result = app.search_ref().lock().await;
     search_result.set(pat, indicates.into_iter());
-    drop(content);
+
+    let cursor_after = search_result.nearest_next(cursor).unwrap();
     drop(search_result);
+    *app.editor_state.cursor_mut() = cursor_after;
 
     app.prior_command = CommandPrior::None;
-    search_jump(app, true).await?;
 
     Ok(false)
 }

@@ -8,9 +8,7 @@ mod command;
 use std::time::Duration;
 use std::io::stderr;
 
-use app::{handle_input, App};
 use crossterm::event::{self, KeyEventKind};
-use error::{AppError, AppResult};
 use ratatui::{
     Terminal,
     backend::CrosstermBackend
@@ -29,15 +27,27 @@ use crossterm::{
 
 use tokio::runtime::Runtime;
 
+use app::{handle_input, App};
+use error::{AppResult, ErrorType};
+
 fn main() -> AppResult<()> {
     // Frame init
     let backend = CrosstermBackend::new(stderr());
     let mut terminal = Terminal::new(backend)?;
 
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 2 {
+        return Err(
+            ErrorType::Specific(
+                String::from("Wrong arguments for this app!")
+            ).pack()
+        )
+    }
+
     let mut app = App::new();
     let rt = Runtime::new().unwrap();
 
-    rt.block_on(app.init_app())?;
+    rt.block_on(app.init_app(args[1].to_owned()))?;
 
     enable_raw_mode()?;
     execute!(stderr(), EnterAlternateScreen)?;
@@ -47,8 +57,11 @@ fn main() -> AppResult<()> {
             match ui::main_frame(frame, &mut app, &rt) {
                 Ok(_) => (),
                 Err(err) => {
+                    execute!(stderr(), LeaveAlternateScreen).unwrap();
+                    disable_raw_mode().unwrap();
+
                     println!("{}", err.to_string());
-                    panic!("See error generated above from rendering frame.")
+                    panic!("See the error generated above caused by rendering frame.")
                 },
             }
         })?;
@@ -66,8 +79,6 @@ fn main() -> AppResult<()> {
                             err.into_iter()
                         ),
                     }
-                    // TODO: Add refresh_stylized function
-                    // Consider the change of scroll_offset & cursor_pos
                 }
             }
         }

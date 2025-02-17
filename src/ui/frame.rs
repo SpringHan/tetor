@@ -2,10 +2,13 @@
 
 use std::sync::Arc;
 
-use crate::{app::App, error::{AppError, AppResult}};
-
-use ratatui::{layout::{Constraint, Direction, Layout}, Frame};
+use ratatui::{
+    layout::{Constraint, Direction, Layout},
+    Frame
+};
 use tokio::runtime::Runtime;
+
+use crate::{app::App, error::{AppError, AppResult}};
 
 use super::{info_line::InfoLine, Editor};
 

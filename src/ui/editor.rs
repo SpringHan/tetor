@@ -1,12 +1,16 @@
 // Editord
 
-use ratatui::{layout::Rect, style::{Color, Style}, widgets::StatefulWidget};
+use ratatui::{
+    layout::Rect,
+    style::{Color, Style},
+    widgets::StatefulWidget
+};
+
 use tokio::sync::Mutex;
 
 use std::sync::Arc;
 
 use crate::{app::SearchIndicates, fs::StylizedVec};
-
 use super::modal::Modal;
 
 /// The editor state for Editor widget.

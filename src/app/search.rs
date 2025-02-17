@@ -59,6 +59,28 @@ impl SearchIndicates {
         Some((current_raw.0.start, current_raw.1))
     }
 
+    /// Select the nearest next item.
+    pub fn nearest_next(&mut self, cursor: (u16, u16)) -> Option<(u16, u16)> {
+        if self.indicates.is_empty() {
+            return None
+        }
+
+        let mut idx = 0;
+        for (x_range, y) in self.indicates.iter() {
+            if *y >= cursor.1 {
+                if x_range.contains(&cursor.0) || x_range.start > cursor.0 {
+                    self.selected = Some(idx);
+                    return Some((x_range.start, *y))
+                }
+            }
+
+            idx += 1;
+        }
+
+        self.selected = Some(0);
+        self.current_indicate()
+    }
+
     pub fn set<I>(&mut self, target: String, iter: I)
     where I: Iterator<Item = (u16, u16)>
     {

@@ -1,7 +1,7 @@
 // File State
 
 use super::type_convert::{ColorConvert, StyleConvert};
-use crate::error::{self, AppError, AppResult, ErrorType};
+use crate::error::{AppError, AppResult, ErrorType};
 
 use ratatui::style::{Color, Style};
 use tokio::{fs, sync::Mutex};
@@ -18,20 +18,13 @@ use syntect::{
 use std::sync::Arc;
 use std::path::{Path, PathBuf};
 
-pub type LineVec = Vec<String>;
 pub type StylizedVec = Vec<ContentLine>;
+type LineVec = Vec<String>;
 type StylizedContent = Vec<(ratatui::style::Style, String)>;
 
 /// A structure storing single line of stylized content.
 #[derive(Debug, Clone)]
 pub struct ContentLine(StylizedContent);
-
-/// Structure used to stylize content in a range.
-#[derive(Debug, Clone, Copy)]
-pub struct StylizeRange {
-    start: usize,
-    line_nr: u16,
-}
 
 // TODO: Do not load all the file when the file is too large
 #[derive(Debug)]
@@ -57,18 +50,8 @@ impl Into<String> for ContentLine {
 }
 
 impl ContentLine {
-    pub fn new(line: StylizedContent) -> Self {
-        ContentLine(line)
-    }
-
     pub fn get_iter<'a>(&'a self) -> impl Iterator<Item = &'a (Style, String)> {
         self.0.iter()
-    }
-}
-
-impl StylizeRange {
-    pub fn new(start: usize, height: u16) -> Self {
-        Self { line_nr: height, start }
     }
 }
 
@@ -90,8 +73,10 @@ impl FileState {
         &self.stylized
     }
 
-    pub async fn init<P: AsRef<Path>>(&mut self, path: P) -> AppResult<()> {
-        let file = fs::File::open(path.as_ref().to_owned()).await?;
+    pub async fn init(&mut self, path: String) -> AppResult<()> {
+        let path = Self::get_absolute(path);
+
+        let file = fs::File::open(path.to_owned()).await?;
         let content_ref = Arc::clone(&self.content);
 
         let read_result = tokio::join!(async move {
@@ -107,7 +92,7 @@ impl FileState {
         });
 
         read_result.0?;
-        self.path = path.as_ref().to_path_buf();
+        self.path = path;
 
         Ok(())
     }
@@ -344,6 +329,29 @@ impl FileState {
         let element = _vec[0].to_owned();
         _vec.remove(0);
         element
+    }
+
+    fn get_absolute(mut path: String) -> PathBuf {
+        use path_absolutize::*;
+
+        if path.starts_with("~/") {
+            let user = std::env::var("USER")
+                .expect("Failed to get user name!");
+            let home_path = if &user == "root" {
+                String::from("/root/")
+            } else {
+                format!("/home/{}/", user)
+            };
+
+            path.remove(0);
+            path.remove(0);
+            path.insert_str(0, &home_path);
+        }
+
+        PathBuf::from(path)
+            .absolutize()
+            .expect("Failed to get absolute path!")
+            .to_path_buf()
     }
 }
 

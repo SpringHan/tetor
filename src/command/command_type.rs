@@ -101,8 +101,18 @@ impl CursorMoveType {
                 }
 
             },
-            CursorMoveType::Beg => *modify_ref = 0,
-            CursorMoveType::End => *modify_ref = max as u16,
+            CursorMoveType::Beg => {
+                *modify_ref = 0;
+                if !within_line {
+                    after.0 = 0;
+                }
+            },
+            CursorMoveType::End => {
+                *modify_ref = max as u16;
+                if !within_line {
+                    after.0 = 0;
+                }
+            },
         }
 
         if !within_line {

@@ -4,6 +4,7 @@ use std::convert::From;
 
 pub type AppResult<T> = Result<T, AppError>;
 
+// TODO: Seems that app error in this package not needs to be a vec
 #[derive(Debug, Clone, Default)]
 pub struct AppError {
     errors: Vec<ErrorType>
@@ -13,8 +14,6 @@ pub struct AppError {
 pub enum ErrorType {
     IO(tokio::io::ErrorKind, String),
     Specific(String),
-    // TODO: Remove this if it's not necessary
-    UnknowPanicError,
 }
 
 impl AppError {
@@ -24,10 +23,6 @@ impl AppError {
 
     pub fn into_iter(self) -> impl Iterator<Item = ErrorType> {
         self.errors.into_iter()
-    }
-
-    pub fn add_error(&mut self, error: ErrorType) {
-        self.errors.push(error);
     }
 
     pub fn append_errors<I>(&mut self, iter: I)
@@ -45,10 +40,6 @@ impl AppError {
     pub fn throw(&mut self) {
         self.errors.remove(0);
     }
-
-    pub fn clear(&mut self) {
-        self.errors.clear();
-    }
 }
 
 impl ErrorType {
@@ -64,9 +55,6 @@ impl ErrorType {
             ErrorType::Specific(ref msg) => {
                 format!("[Error]: {}!", msg.to_owned())
             }
-            ErrorType::UnknowPanicError => {
-                String::from("[Error]: Operation failed due to unknow panic error!")
-            },
         }
     }
 }
