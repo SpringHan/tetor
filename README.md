@@ -1,5 +1,9 @@
 ## Tetor
 
+### Warning
+
+This repository is still being developing with a few bugs. The stable version will be released soon.
+
 ### Introduction
 
 Tetor is the TErminal ediTOR with syntax highlighting for main file types. And this program is only tested on Linux.
