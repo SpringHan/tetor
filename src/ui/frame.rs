@@ -3,8 +3,7 @@
 use std::sync::Arc;
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    Frame
+    layout::{Constraint, Direction, Layout}, Frame
 };
 use tokio::runtime::Runtime;
 

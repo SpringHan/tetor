@@ -89,6 +89,10 @@ impl App {
 
         (file_result?, keymap_result?);
 
+        self.editor_state.update_linenr(
+            self.file_state.content_ref().lock().await.len()
+        );
+
         Ok(())
     }
 }

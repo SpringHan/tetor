@@ -70,7 +70,7 @@ fn main() -> AppResult<()> {
             break;
         }
 
-        if poll(Duration::from_millis(100))? {
+        if poll(Duration::from_millis(200))? {
             if let event::Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     match handle_input(&mut app, key.code, &rt) {

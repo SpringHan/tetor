@@ -1,9 +1,7 @@
 // Editord
 
 use ratatui::{
-    layout::Rect,
-    style::{Color, Style},
-    widgets::StatefulWidget
+    layout::Rect, style::{Color, Style}, widgets::StatefulWidget
 };
 
 use tokio::sync::Mutex;
@@ -24,6 +22,7 @@ pub struct EditorState {
     scroll_offset: usize,
 
     editor_height: Option<isize>,
+    file_linenr: usize,
 
     pub modal: Modal,
     pub scrolling: bool
@@ -46,6 +45,7 @@ impl Default for EditorState {
             scrolling: false,
             scroll_offset: 0,
 
+            file_linenr: 0,
             editor_height: None,
             modal: Modal::default(),
         }
@@ -79,6 +79,10 @@ impl EditorState {
 
     pub fn mark_mut(&mut self) -> &mut Option<(u16, u16)> {
         &mut self.mark_point
+    }
+
+    pub fn update_linenr(&mut self, nr: usize) {
+        self.file_linenr = nr;
     }
 
     pub fn update(&mut self, area: Rect) -> bool {
@@ -157,9 +161,17 @@ impl StatefulWidget for Editor {
         let text = self.lines.blocking_lock();
         let indicates = self.search_indicates.blocking_lock();
 
+        // println!("{:?}", text);
+        // for line in text.iter() {
+        //     for (style, content) in line.get_iter() {
+        //         println!("{}", content);
+        //     }
+        // }
+
+        // TODO: Deal with tabs.
         // Update linenr_width
         let linenr_width = {
-            let length = Self::nr_length(text.len());
+            let length = Self::nr_length(state.file_linenr);
             if length <= 4 {
                 4
             } else {
@@ -209,6 +221,7 @@ impl StatefulWidget for Editor {
                     let point_buf = buf.get_mut(current_point, buf_y);
                     if _char != '\n' {
                         point_buf.set_char(_char);
+
                     }
 
                     loop {
@@ -245,6 +258,18 @@ impl StatefulWidget for Editor {
                     current_point += 1;
                     current_length += 1;
                 }
+            }
+            
+            while current_point < area.width {
+                let point = buf.get_mut(current_point, buf_y);
+                // if point.symbol() != " " ||
+                //     point.style().bg.is_some() ||
+                //     point.style().fg.is_some()
+                // {
+                    point.reset();
+                // }
+
+                current_point += 1;
             }
 
             buf_y += 1;
