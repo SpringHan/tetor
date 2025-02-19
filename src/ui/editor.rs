@@ -161,13 +161,6 @@ impl StatefulWidget for Editor {
         let text = self.lines.blocking_lock();
         let indicates = self.search_indicates.blocking_lock();
 
-        // println!("{:?}", text);
-        // for line in text.iter() {
-        //     for (style, content) in line.get_iter() {
-        //         println!("{}", content);
-        //     }
-        // }
-
         // TODO: Deal with tabs.
         // Update linenr_width
         let linenr_width = {
@@ -260,18 +253,6 @@ impl StatefulWidget for Editor {
                 }
             }
             
-            while current_point < area.width {
-                let point = buf.get_mut(current_point, buf_y);
-                // if point.symbol() != " " ||
-                //     point.style().bg.is_some() ||
-                //     point.style().fg.is_some()
-                // {
-                    point.reset();
-                // }
-
-                current_point += 1;
-            }
-
             buf_y += 1;
             file_line += 1;
         }

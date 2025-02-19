@@ -84,6 +84,7 @@ impl FileState {
             let mut reader_lines = BufReader::new(file).lines();
 
             while let Some(mut line) = reader_lines.next_line().await? {
+                line = strip_ansi_escapes::strip_str(&line);
                 line.push('\n');
                 content.push(line.to_owned());
             }
@@ -378,7 +379,7 @@ mod tests {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
             let mut file_state = FileState::default();
-            file_state.init(PathBuf::from("/home/spring/test.el")).await?;
+            file_state.init(String::from("/home/spring/test.el")).await?;
 
             println!("{:#?}", file_state.content);
 

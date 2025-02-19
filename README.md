@@ -1,10 +1,10 @@
-## Tetor
+# Tetor
 
-### Warning
+## Warning
 
 This repository is still being developing with a few bugs. The stable version will be released soon.
 
-### Introduction
+## Introduction
 
 Tetor is the TErminal ediTOR with syntax highlighting for main file types. And this program is only tested on Linux.
 
@@ -14,7 +14,7 @@ You can see it as [cat](https://en.wikipedia.org/wiki/Cat_(Unix)) with a little 
 
 The main reason I create this app is that: I don't use Vim, but I use terminal file browser (like [ranger](https://github.com/ranger/ranger)) regularly. So I need a TUI program that can smoothly browse & edit file.
 
-### Installation
+## Installation
 
 Just run:
 
@@ -23,3 +23,7 @@ cargo build --release
 ```
 
 And move the executable file in `target/release/` to your `bin` folder.
+
+## TODO
+
+- [ ] Support editing for ANSI Escapes code
