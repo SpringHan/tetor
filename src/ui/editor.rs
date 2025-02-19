@@ -181,8 +181,8 @@ impl StatefulWidget for Editor {
                 break;
             }
 
-            let mut current_length = 0;
-            let mut current_point = linenr_width as u16 + 1; // Current horizontal position in buf
+            let mut current_length = 0; // Same as the value of state.cursor_pos.0
+            let mut buf_x = linenr_width as u16 + 1; // Current horizontal position in buf
             let linenr_start = linenr_width - Self::nr_length(file_line + 1);
 
             // Render line number
@@ -194,27 +194,26 @@ impl StatefulWidget for Editor {
             );
 
             // Render delimiter
-            buf.get_mut(current_point, buf_y).set_symbol("|");
-            current_point += 1;
+            buf.get_mut(buf_x, buf_y).set_symbol("|");
+            buf_x += 1;
 
             // TODO: Add display for marked content
             // Render content
             for (style, span) in line.get_iter() {
                 for _char in span.chars() {
-                    if current_point == area.width {
+                    if buf_x == area.width {
                         buf_y += 1;
                         if buf_y == area.height {
                             break 'whole;
                         }
 
-                        current_point = linenr_width as u16 + 2;
-                        buf.get_mut(current_point - 1, buf_y).set_symbol("|");
+                        buf_x = linenr_width as u16 + 2;
+                        buf.get_mut(buf_x - 1, buf_y).set_symbol("|");
                     }
 
-                    let point_buf = buf.get_mut(current_point, buf_y);
-                    if _char != '\n' {
+                    let point_buf = buf.get_mut(buf_x, buf_y);
+                    if _char != '\n' && _char != '\t' {
                         point_buf.set_char(_char);
-
                     }
 
                     loop {
@@ -248,8 +247,18 @@ impl StatefulWidget for Editor {
                         break;
                     }
 
-                    current_point += 1;
                     current_length += 1;
+
+                    if _char == '\t' {
+                        for _ in 0..4 {
+                            // buf.get_mut(buf_x, buf_y).set_char(' ');
+                            buf_x += 1;
+                        }
+
+                        continue;
+                    }
+
+                    buf_x += 1;
                 }
             }
             
