@@ -30,6 +30,7 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
             KeyCode::Char(_key) => rt.block_on(insert_char(app, _key))?,
             KeyCode::Backspace => rt.block_on(backward_char(app))?,
             KeyCode::Enter => rt.block_on(insert_char(app, '\n'))?,
+            KeyCode::Tab => rt.block_on(insert_char(app, '\t'))?,
             KeyCode::Esc => {
                 app.get_modal().switch_normal();
                 return Ok(());

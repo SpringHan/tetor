@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     command::{Command, CommandPrior},
-    config::Keymap,
+    config::{init_config, AppOption, Keymap},
     error::{AppError, AppResult, ErrorType},
     fs::FileState,
     ui::{CommandEdit, EditorState}
@@ -20,6 +20,7 @@ pub use search::SearchIndicates;
 #[derive(Debug)]
 pub struct App {
     keymap: Keymap,
+    options: AppOption,
     search_result: Arc<Mutex<SearchIndicates>>,
 
     pub file_state: FileState,
@@ -41,6 +42,7 @@ impl App {
         App {
             file_state: FileState::default(),
             keymap: Keymap::default(),
+            options: AppOption::default(),
             editor_state: EditorState::default(),
             app_errors: AppError::default(),
             prior_command: CommandPrior::None,
@@ -65,6 +67,7 @@ impl App {
         )
     }
 
+    // Get reference part starts from here
     pub fn get_modal(&mut self) -> &mut crate::ui::Modal {
         &mut self.editor_state.modal
     }
@@ -73,10 +76,15 @@ impl App {
         self.keymap.keymap().get(&key).cloned()
     }
 
+    pub fn options(&self) -> &AppOption {
+        &self.options
+    }
+
     pub fn search_ref(&self) -> &Arc<Mutex<SearchIndicates>> {
         &self.search_result
     }
 
+    // Initialization part starts from here
     pub async fn init_app(&mut self, path: String) -> AppResult<()> {
         let (file_result, keymap_result) = tokio::join!(
             self.file_state.init(path),
@@ -84,7 +92,7 @@ impl App {
             // self.file_state.init("/home/spring/Rust/hire/src/ui.rs"),
             // self.file_state.init("/var/log/pacman.log"),
             // self.file_state.init("/home/spring/.config/hypr/hyprland.conf"),
-            self.keymap.init()
+            init_config(&mut self.keymap, &mut self.options)
         );
 
         (file_result?, keymap_result?);

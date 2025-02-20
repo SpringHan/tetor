@@ -73,19 +73,31 @@ pub async fn page_scroll(app: &mut App, scroll: isize) -> bool {
 }
 
 pub async fn insert_char(app: &mut App, key: char) -> AppResult<bool> {
+    let mut use_space_tab = false;
     let cursor_pos = app.editor_state.cursor();
     let mut edit_line = app.file_state.get_lines(
         cursor_pos.1,
         cursor_pos.1
     ).await?;
 
-    edit_line[0].insert(cursor_pos.0 as usize, key);
+    // Handle tab insert
+    if key == '\t' && !app.options().tab_indent {
+        use_space_tab = true;
+        edit_line[0].insert_str(cursor_pos.0 as usize, "    ");
+    } else {
+        edit_line[0].insert(cursor_pos.0 as usize, key);
+    }
 
     app.file_state.modify_lines(
         cursor_pos.1,
         cursor_pos.1,
         edit_line
     ).await?;
+
+    if use_space_tab {
+        app.editor_state.cursor_mut().0 += 4;
+        return Ok(true)
+    }
 
     if key == '\n' {
         let cursor = app.editor_state.cursor_mut();

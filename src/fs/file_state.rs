@@ -84,7 +84,7 @@ impl FileState {
             let mut reader_lines = BufReader::new(file).lines();
 
             while let Some(mut line) = reader_lines.next_line().await? {
-                line = strip_ansi_escapes::strip_str(&line);
+                // line = strip_ansi_escapes::strip_str(&line);
                 line.push('\n');
                 content.push(line.to_owned());
             }

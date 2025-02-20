@@ -40,3 +40,6 @@ keymap = [
        { key = "q", run = "quit" },
        { key = "ESC", run = "escape_command" }
 ]
+
+[config.options]
+tab_indent = false # Use tab as indentation when it's true, the default value is false
