@@ -44,9 +44,9 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
     rt.block_on(async {
         let prior_command = match app.prior_command {
             CommandPrior::None            => None,
+            CommandPrior::Mark            => Some(Command::Mark),
             CommandPrior::Quit(_)         => Some(Command::Quit),
             CommandPrior::Change          => Some(Command::Change),
-            CommandPrior::Mark            => Some(Command::Mark(false)),
             CommandPrior::ReplaceChar     => Some(Command::ReplaceChar),
             CommandPrior::Delete          => Some(Command::Delete(false)),
             CommandPrior::Search(ref pat) => Some(Command::Search(Some(pat.to_owned()))),

@@ -248,19 +248,6 @@ pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     Ok(true)
 }
 
-#[inline]
-fn compare_swap<T>(small: &mut (T, T), big: &mut (T, T))
-where T: PartialEq + PartialOrd + Copy
-{
-    if small.1 > big.1 {
-        swap(small, big);
-    }
-
-    if small.1 == big.1 && small.0 > big.0 {
-        swap(small, big);
-    }
-}
-
 pub async fn change(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     if key.is_none() {
         let to_update = delete(app, None).await?;

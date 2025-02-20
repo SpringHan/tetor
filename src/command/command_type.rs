@@ -31,12 +31,12 @@ pub enum CommandPrior {
 pub enum Command {
     Save,
     Quit,
+    Mark,
     Change,
     ReplaceChar,
     BackwardChar,
     EscapeCommand,
 
-    Mark(bool),                 // Whether cancel mark
     Delete(bool),               // Whether delete char
     NewLine(bool),              // Whether open down a new line
     Search(Option<String>),
@@ -135,6 +135,7 @@ impl Command {
     // stylized content.
     pub async fn execute(&self, app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
         Ok(match *self {
+            Command::Mark                      => mark(app, key)?,
             Command::Save                      => save(app).await?,
             Command::Quit                      => quit(app, key).await,
             Command::Change                    => change(app, key).await?,
@@ -152,14 +153,6 @@ impl Command {
                 within_line,
                 cursor_move
             ).await?,
-
-            Command::Mark(_cancel_mark) => {
-                if _cancel_mark {
-                    cancel_mark(app)
-                } else {
-                    mark(app, key)?
-                }
-            },
 
             Command::Delete(_delete_char) => {
                 if _delete_char {

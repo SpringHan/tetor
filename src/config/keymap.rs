@@ -83,14 +83,13 @@ impl From<&str> for Command {
 
         match command_slice[0] {
             "save"           => Self::Save,
+            "mark"           => Self::Mark,
             "quit"           => Self::Quit,
             "change"         => Self::Change,
             "replace_char"   => Self::ReplaceChar,
             "backward_char"  => Self::BackwardChar,
             "escape_command" => Self::EscapeCommand,
 
-            "cancel_mark"    => Self::Mark(true),
-            "mark"           => Self::Mark(false),
             "delete_char"    => Self::Delete(true),
             "search"         => Self::Search(None),
             "delete"         => Self::Delete(false),

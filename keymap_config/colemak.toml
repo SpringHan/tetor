@@ -30,7 +30,6 @@ keymap = [
        { key = "x", run = "delete_char" },
        { key = "c", run = "change" },
        { key = "m", run = "mark" },
-       { key = "ESC", run = "cancel_mark" },
        { key = "r", run = "replace_char" },
        { key = "o", run = "newline down" },
        { key = "O", run = "newline up" },

@@ -1,6 +1,7 @@
 mod ui;
 mod fs;
 mod app;
+mod utils;
 mod error;
 mod config;
 mod command;
