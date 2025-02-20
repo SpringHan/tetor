@@ -1,7 +1,10 @@
 // Editord
 
 use ratatui::{
-    layout::Rect, style::{Color, Style}, widgets::StatefulWidget
+    buffer::Buffer,
+    layout::Rect,
+    style::{Color, Style},
+    widgets::StatefulWidget
 };
 
 use tokio::sync::Mutex;
@@ -165,6 +168,17 @@ impl Editor {
 
         true
     }
+
+    fn color_reverse(&self, buf: &mut Buffer, style: Style, x: u16, y: u16) {
+        let point_buf = buf.get_mut(x, y);
+
+        point_buf.bg = if let Some(color) = style.fg {
+            color
+        } else {
+            Color::White
+        };
+        point_buf.fg = self.background_color;
+    }
 }
 
 impl StatefulWidget for Editor {
@@ -173,7 +187,7 @@ impl StatefulWidget for Editor {
     fn render(
         self,
         area: Rect,
-        buf: &mut ratatui::prelude::Buffer,
+        buf: &mut Buffer,
         state: &mut Self::State
     )
     {
@@ -194,7 +208,7 @@ impl StatefulWidget for Editor {
         // Render line number & content
         let mut buf_y = 0;
         let mut file_line = state.scroll_offset;
-        'whole: for line in text.iter() {
+        for line in text.iter() {
             if buf_y >= area.height {
                 break;
             }
@@ -211,18 +225,18 @@ impl StatefulWidget for Editor {
                 Style::default()
             );
 
-            // Render delimiter
+            // Render delimiter between line number & content
             buf.get_mut(buf_x, buf_y).set_symbol("|");
             buf_x += 1;
 
-            // TODO: Add display for marked content
             // Render content
             for (style, span) in line.get_iter() {
                 for _char in span.chars() {
+                    // New buffer line for display
                     if buf_x == area.width {
                         buf_y += 1;
                         if buf_y == area.height {
-                            break 'whole;
+                            return ()
                         }
 
                         buf_x = linenr_width as u16 + 2;
@@ -252,13 +266,7 @@ impl StatefulWidget for Editor {
                                 file_line as u16
                             ))
                         {
-                            point_buf.bg = if let Some(color) = style.fg {
-                                color
-                            } else {
-                                Color::White
-                            };
-                            point_buf.fg = self.background_color;
-
+                            self.color_reverse(buf, *style, buf_x, buf_y);
                             break;
                         }
 
@@ -268,11 +276,26 @@ impl StatefulWidget for Editor {
 
                     current_length += 1;
 
-                    // TODO: Add check whether buf_x is beyond the buffer width
+                    // Deal with the display of tabs
                     if _char == '\t' {
                         for _ in 0..4 {
-                            // buf.get_mut(buf_x, buf_y).set_char(' ');
                             buf_x += 1;
+
+                            if buf_x < area.width &&
+                                Self::within_mark(state, current_length, file_line as u16)
+                            {
+                                self.color_reverse(buf, *style, buf_x, buf_y);
+                            }
+
+                            // Avoid out of range panic
+                            if buf_x == area.width {
+                                buf_y += 1;
+                                if buf_y == area.height {
+                                    return ()
+                                }
+
+                                buf_x = 0;
+                            }
                         }
 
                         continue;
