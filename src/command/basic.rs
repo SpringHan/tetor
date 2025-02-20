@@ -1,13 +1,12 @@
 // Basic
 
-use std::mem::swap;
-
 use crossterm::event::KeyCode;
 
 use crate::{
     app::App,
     error::{AppResult, ErrorType},
-    ui::CommandEdit
+    ui::CommandEdit,
+    utils::cursor_compare_swap
 };
 
 use super::{command_type::CursorMoveType, CommandPrior};
@@ -84,6 +83,10 @@ pub async fn insert_char(app: &mut App, key: char) -> AppResult<bool> {
     if key == '\t' && !app.options().tab_indent {
         use_space_tab = true;
         edit_line[0].insert_str(cursor_pos.0 as usize, "    ");
+    } else if key == '\n' {
+        let temp_line = edit_line[0][cursor_pos.0 as usize..].to_owned();
+        edit_line[0].replace_range((cursor_pos.0 as usize).., "\n");
+        edit_line.push(temp_line);
     } else {
         edit_line[0].insert(cursor_pos.0 as usize, key);
     }
@@ -184,7 +187,7 @@ pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
 
                 // Delete marked region
                 let (mut start, mut end) = (mark_pos, cursor);
-                compare_swap(&mut start, &mut end);
+                cursor_compare_swap(&mut start, &mut end);
 
                 let origin_lines = app.file_state.get_lines(start.1, end.1).await?;
                 let mut new_line = String::new();
@@ -315,15 +318,6 @@ pub fn mark(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
     }
 
     Ok(false)
-}
-
-// TODO: To be integrated to escape_command
-pub fn cancel_mark(app: &mut App) -> bool {
-    if app.editor_state.mark().is_some() {
-        *app.editor_state.mark_mut() = None;
-    }
-
-    false
 }
 
 pub async fn newline(app: &mut App, down: bool) -> bool {
@@ -481,6 +475,14 @@ pub async fn search_jump(app: &mut App, next: bool) -> AppResult<bool> {
 
 /// The general command binded for ESC key.
 pub async fn escape_command(app: &mut App) -> AppResult<bool> {
+    // Cancel mark
+    if app.editor_state.mark().is_some() {
+        *app.editor_state.mark_mut() = None;
+
+        return Ok(false)
+    }
+
+    // Clear search results
     let mut search_ref = app.search_ref().lock().await;
     if search_ref.has_history() {
         search_ref.clear();

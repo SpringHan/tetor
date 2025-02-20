@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use std::sync::Arc;
 
-use crate::{app::SearchIndicates, fs::StylizedVec};
+use crate::{app::SearchIndicates, utils::cursor_compare_swap, fs::StylizedVec};
 use super::modal::Modal;
 
 /// The editor state for Editor widget.
@@ -146,6 +146,25 @@ impl Editor {
     fn nr_length<N: ToString>(nr: N) -> u8 {
         nr.to_string().chars().count() as u8
     }
+
+    /// Check whether cursor is within the marked region.
+    fn within_mark(state: &EditorState, x: u16, y: u16) -> bool {
+        if state.mark().is_none() {
+            return false
+        }
+
+        let mut cursor_start = state.cursor();
+        let mut cursor_end = state.mark().unwrap();
+        cursor_compare_swap(&mut cursor_start, &mut cursor_end);
+
+        if y < cursor_start.1 || y > cursor_end.1 ||
+            x < cursor_start.0 || x >= cursor_end.0
+        {
+            return false
+        }
+
+        true
+    }
 }
 
 impl StatefulWidget for Editor {
@@ -161,7 +180,6 @@ impl StatefulWidget for Editor {
         let text = self.lines.blocking_lock();
         let indicates = self.search_indicates.blocking_lock();
 
-        // TODO: Deal with tabs.
         // Update linenr_width
         let linenr_width = {
             let length = Self::nr_length(state.file_linenr);
@@ -228,10 +246,11 @@ impl StatefulWidget for Editor {
                         }
 
                         // Search indicates
-                        if indicates.indicates_find((
-                            current_length,
-                            file_line as u16
-                        ))
+                        if Self::within_mark(state, current_length, file_line as u16) ||
+                            indicates.indicates_find((
+                                current_length,
+                                file_line as u16
+                            ))
                         {
                             point_buf.bg = if let Some(color) = style.fg {
                                 color
@@ -249,6 +268,7 @@ impl StatefulWidget for Editor {
 
                     current_length += 1;
 
+                    // TODO: Add check whether buf_x is beyond the buffer width
                     if _char == '\t' {
                         for _ in 0..4 {
                             // buf.get_mut(buf_x, buf_y).set_char(' ');

@@ -294,32 +294,11 @@ impl FileState {
         let mut file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)
-            .append(true)
             .open(self.path.to_owned()).await?;
 
-        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
-
-        let destyle_task = async {
-            for line in self.content.lock().await.iter() {
-                tx.send(line.to_owned())
-                    .expect("Error code 3 at save_content in file_state.rs!");
-            }
-        };
-
-        let save_task = async {
-            while let Some(line) = rx.recv().await {
-                file.write(line.as_bytes()).await?;
-            }
-
-            Ok::<(), tokio::io::Error>(())
-        };
-
-        let (_, save_result) = tokio::join!(
-            destyle_task,
-            save_task
-        );
-
-        save_result?;
+        for line in self.content.lock().await.iter() {
+            file.write(line.as_bytes()).await?;
+        }
 
         *self.file_modified.lock().await = false;
 
