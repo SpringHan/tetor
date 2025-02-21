@@ -28,7 +28,7 @@ pub fn main_frame(frame: &mut Frame, app: &mut App, rt: &Runtime) -> AppResult<(
         rt.block_on(async {
             app.file_state.refresh_stylized(
                 app.editor_state.offset(),
-                main_layout[0].height
+                main_layout[0].height as usize
             ).await?;
 
             if app.update_stylized {

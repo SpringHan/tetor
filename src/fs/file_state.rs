@@ -11,7 +11,6 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use syntect::{
     parsing::SyntaxSet,
     easy::HighlightLines,
-    util::LinesWithEndings,
     highlighting::{Theme, ThemeSet},
 };
 
@@ -101,14 +100,14 @@ impl FileState {
     pub async fn refresh_stylized(
         &mut self,
         start: usize,
-        line_nr: u16,
+        height: usize,
     ) -> AppResult<()> {
         let content = self.content.lock().await;
 
-        let end = if start + line_nr as usize > content.len() {
+        let end = if start + height > content.len() {
             content.len()
         } else {
-            start + line_nr as usize
+            start + height
         };
 
         // Parse content
@@ -172,41 +171,40 @@ impl FileState {
         };
 
         while let Some(content) = rx.recv().await {
-            for line in LinesWithEndings::from(&content) {
-                // Highligth line
-                if let Some(ref mut _h) = h {
-                    let ranges = _h.highlight_line(line, &self.syntax_set)
-                        .unwrap();
+            // Highligth line
+            if let Some(ref mut _h) = h {
+                let ranges = _h.highlight_line(&content, &self.syntax_set)
+                    .unwrap();
 
-                    if !get_bg {
-                        get_bg = true;
-
-                        background_color = ranges.get(0)
-                            .expect("Error code 1 at parse_content in file_state.rs")
-                            .0
-                            .background
-                            .to_rcolor();
-                    }
-
-                    result.push(ContentLine(
-                        ranges.into_iter()
-                            .map(|(style, _content)| (style.to_rstyle(), String::from(_content)))
-                            .collect::<StylizedContent>()
-                    ));
-
-                    continue;
-                }
-
-                // Use default color
                 if !get_bg {
-                    background_color = Color::Black;
                     get_bg = true;
+
+                    background_color = ranges.get(0)
+                        .expect("Error code 1 at parse_content in file_state.rs")
+                        .0
+                        .background
+                        .to_rcolor();
                 }
 
                 result.push(ContentLine(
-                    vec![(Style::default(), line.to_owned())]
+                    ranges.into_iter()
+                        .map(|(style, _content)| (style.to_rstyle(), String::from(_content)))
+                        .collect::<StylizedContent>()
                 ));
+
+                continue;
             }
+
+            // Use default color
+            if !get_bg {
+                background_color = Color::Black;
+                get_bg = true;
+            }
+
+            result.push(ContentLine(
+                vec![(Style::default(), content.to_owned())]
+            ));
+            
         }
 
         Ok((result, background_color))

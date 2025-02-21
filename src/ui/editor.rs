@@ -22,7 +22,8 @@ pub struct EditorState {
     cursor_pos: (u16, u16),
     mark_point: Option<(u16, u16)>,
 
-    scroll_offset: usize,
+    vertical_offset: usize,
+    horizontal_offset: u16,
 
     editor_height: Option<isize>,
     file_linenr: usize,
@@ -46,7 +47,8 @@ impl Default for EditorState {
             mark_point: None,
 
             scrolling: false,
-            scroll_offset: 0,
+            vertical_offset: 0,
+            horizontal_offset: 0,
 
             file_linenr: 0,
             editor_height: None,
@@ -57,11 +59,11 @@ impl Default for EditorState {
 
 impl EditorState {
     pub fn offset(&self) -> usize {
-        self.scroll_offset
+        self.vertical_offset
     }
 
     pub fn offset_mut(&mut self) -> &mut usize {
-        &mut self.scroll_offset
+        &mut self.vertical_offset
     }
 
     pub fn cursor(&self) -> (u16, u16) {
@@ -101,23 +103,42 @@ impl EditorState {
             self.editor_height = Some(area.height as isize);
         }
 
-        // Adjust scroll_offset & cursor position.
-        if self.cursor_pos.1 < self.scroll_offset as u16 {
+        // Adjust vertical_offset & cursor position.
+        if self.cursor_pos.1 < self.vertical_offset as u16 {
             if self.scrolling {
-                self.cursor_pos.1 = self.scroll_offset as u16;
+                self.cursor_pos.1 = self.vertical_offset as u16;
             } else {
-                self.scroll_offset = self.cursor_pos.1 as usize;
+                self.vertical_offset = self.cursor_pos.1 as usize;
             }
 
             to_update = true;
-        } else if self.cursor_pos.1 >= area.height + self.scroll_offset as u16 {
+        } else if self.cursor_pos.1 >= area.height + self.vertical_offset as u16 {
             if self.scrolling {
-                self.cursor_pos.1 = self.scroll_offset as u16 + area.height - 1;
+                self.cursor_pos.1 = self.vertical_offset as u16 + area.height - 1;
             } else {
-                self.scroll_offset = (self.cursor_pos.1 - area.height / 2) as usize;
+                self.vertical_offset = (self.cursor_pos.1 - area.height / 2) as usize;
             }
 
             to_update = true;
+        }
+
+        // Adjust horizontal_offset
+        let noncontent_width = {
+            let length = Editor::nr_length(self.file_linenr);
+            if length <= 4 {
+                4
+            } else {
+                length
+            }
+        } as u16 + 2;
+        if noncontent_width >= area.width {
+            panic!("The editor is not suitable for large files.")
+        }
+
+        if self.horizontal_offset > self.cursor_pos.0 {
+            self.horizontal_offset = self.cursor_pos.0;
+        } else if self.cursor_pos.0 - self.horizontal_offset + 1 >= area.width - noncontent_width {
+            self.horizontal_offset = self.cursor_pos.0 - area.width / 2;
         }
 
         // To avoid this variable make impact on other motion
@@ -204,22 +225,32 @@ impl StatefulWidget for Editor {
             }
         };
 
-        // TODO: Pay attention to the lines that need to be displayed with multiple buf rows.
         // Render line number & content
         let mut buf_y = 0;
-        let mut file_line = state.scroll_offset;
+        let mut file_line = state.vertical_offset;
         for line in text.iter() {
             if buf_y >= area.height {
                 break;
             }
 
             let mut current_length = 0; // Same as the value of state.cursor_pos.0
-            let mut buf_x = linenr_width as u16 + 1; // Current horizontal position in buf
-            let linenr_start = linenr_width - Self::nr_length(file_line + 1);
+            let mut buf_x = linenr_width as u16 + 2; // Current horizontal position in buffer
+            // let mut linenr_string = format!("{}|", file_line + 1);
+            let linenr_idx = (linenr_width - Self::nr_length(file_line + 1)) as u16;
 
-            // Render line number
+            // Render line number & delimiter
+            // while linenr_string.len() > 0 {
+            //     let _char = linenr_string.remove(0);
+            //     if state.horizontal_offset > linenr_idx {
+            //         linenr_idx += 1;
+            //         continue;
+            //     }
+
+            //     buf.get_mut(linenr_idx, buf_y).set_char(_char);
+            //     linenr_idx += 1;
+            // }
             buf.set_string(
-                linenr_start as u16,
+                linenr_idx as u16,
                 buf_y,
                 (file_line + 1).to_string(),
                 Style::default()
@@ -230,17 +261,23 @@ impl StatefulWidget for Editor {
             buf_x += 1;
 
             // Render content
-            for (style, span) in line.get_iter() {
+            'line: for (style, span) in line.get_iter() {
                 for _char in span.chars() {
-                    // New buffer line for display
+                    // Stop rendering current line
                     if buf_x == area.width {
-                        buf_y += 1;
-                        if buf_y == area.height {
-                            return ()
-                        }
+                        break 'line;
+                        // buf_y += 1;
+                        // if buf_y == area.height {
+                        //     return ()
+                        // }
 
-                        buf_x = linenr_width as u16 + 2;
-                        buf.get_mut(buf_x - 1, buf_y).set_symbol("|");
+                        // buf_x = linenr_width as u16 + 2;
+                        // buf.get_mut(buf_x - 1, buf_y).set_symbol("|");
+                    }
+
+                    if current_length < state.horizontal_offset {
+                        current_length += 1;
+                        continue;
                     }
 
                     let point_buf = buf.get_mut(buf_x, buf_y);
@@ -289,12 +326,13 @@ impl StatefulWidget for Editor {
 
                             // Avoid out of range panic
                             if buf_x == area.width {
-                                buf_y += 1;
-                                if buf_y == area.height {
-                                    return ()
-                                }
+                                break 'line;
+                                // buf_y += 1;
+                                // if buf_y == area.height {
+                                //     return ()
+                                // }
 
-                                buf_x = 0;
+                                // buf_x = 0;
                             }
                         }
 
