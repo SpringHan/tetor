@@ -215,6 +215,14 @@ impl FileState {
         let (from, to) = (from as usize, to as usize);
         let file_lines = self.content.lock().await;
 
+        if file_lines.is_empty() {
+            return Err(
+                ErrorType::Specific(
+                    String::from("Cannot execute current editing operation as it's a empty file!")
+                ).pack()
+            )
+        }
+
         if from > to || to >= file_lines.len() {
             return Err(
                 ErrorType::Specific(

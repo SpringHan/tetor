@@ -26,6 +26,7 @@ And move the executable file in `target/release/` to your `bin` folder.
 
 ## TODO
 
+- [ ] Add comment for each command
 - [ ] Support editing for ANSI Escapes code
 - [ ] Remove useless async codes
 - [ ] Undo / redo

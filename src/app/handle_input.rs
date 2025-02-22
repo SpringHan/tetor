@@ -25,6 +25,18 @@ pub fn handle_input(app: &mut App, key: KeyCode, rt: &Runtime) -> AppResult<()> 
         }
     }
 
+    // When the content is null.
+    // let mut content_ref = app.file_state.content_ref().blocking_lock();
+    // if content_ref.is_empty() {
+    //     content_ref.push(String::from("\n"));
+    // }
+    // drop(content_ref);
+    // app.editor_state.update_linenr(1);
+    // rt.block_on(app.file_state.refresh_stylized(
+    //     app.editor_state.offset(),
+    //     app.editor_state.height() as usize
+    // ))?;
+
     if app.get_modal().modal() == ModalType::Insert {
         app.update_stylized = match key {
             KeyCode::Char(_key) => rt.block_on(insert_char(app, _key))?,

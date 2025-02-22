@@ -215,6 +215,15 @@ impl StatefulWidget for Editor {
         let text = self.lines.blocking_lock();
         let indicates = self.search_indicates.blocking_lock();
 
+        if text.is_empty() {
+            buf.set_string(
+                0,
+                0,
+                "Empty file (Use newline to open a new line)",
+                Style::default()
+            );
+        }
+
         // Update linenr_width
         let linenr_width = {
             let length = Self::nr_length(state.file_linenr);
@@ -235,20 +244,9 @@ impl StatefulWidget for Editor {
 
             let mut current_length = 0; // Same as the value of state.cursor_pos.0
             let mut buf_x = linenr_width as u16 + 2; // Current horizontal position in buffer
-            // let mut linenr_string = format!("{}|", file_line + 1);
             let linenr_idx = (linenr_width - Self::nr_length(file_line + 1)) as u16;
 
             // Render line number & delimiter
-            // while linenr_string.len() > 0 {
-            //     let _char = linenr_string.remove(0);
-            //     if state.horizontal_offset > linenr_idx {
-            //         linenr_idx += 1;
-            //         continue;
-            //     }
-
-            //     buf.get_mut(linenr_idx, buf_y).set_char(_char);
-            //     linenr_idx += 1;
-            // }
             buf.set_string(
                 linenr_idx as u16,
                 buf_y,
@@ -266,13 +264,6 @@ impl StatefulWidget for Editor {
                     // Stop rendering current line
                     if buf_x == area.width {
                         break 'line;
-                        // buf_y += 1;
-                        // if buf_y == area.height {
-                        //     return ()
-                        // }
-
-                        // buf_x = linenr_width as u16 + 2;
-                        // buf.get_mut(buf_x - 1, buf_y).set_symbol("|");
                     }
 
                     if current_length < state.horizontal_offset {
@@ -327,12 +318,6 @@ impl StatefulWidget for Editor {
                             // Avoid out of range panic
                             if buf_x == area.width {
                                 break 'line;
-                                // buf_y += 1;
-                                // if buf_y == area.height {
-                                //     return ()
-                                // }
-
-                                // buf_x = 0;
                             }
                         }
 

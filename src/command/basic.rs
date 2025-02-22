@@ -17,9 +17,9 @@ pub async fn change_insert(
 ) -> AppResult<bool>
 {
     // TODO: add check for mark point
-    app.get_modal().switch_insert();
-
     move_cursor(app, true, cursor_move).await?;
+
+    app.get_modal().switch_insert();
 
     Ok(false)
 }
@@ -314,6 +314,12 @@ pub async fn newline(app: &mut App, down: bool) -> bool {
 
     let new_line = String::from("\n");
 
+    // NOTE: When the file is empty, newline will only create a line.
+    if file_content.is_empty() {
+        file_content.push(new_line);
+        return true
+    }
+
     if down {
         line_after += 1;
     }
@@ -344,7 +350,6 @@ pub async fn backward_char(app: &mut App) -> AppResult<bool> {
             return Ok(false)
         }
 
-        // let mut file_content = app.file_state.content_ref().lock().await;
         let mut lines = app.file_state.get_lines(cursor.1 - 1, cursor.1).await?;
         *app.editor_state.cursor_mut() = (
             lines[0].len() as u16 - 1,
