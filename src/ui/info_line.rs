@@ -99,7 +99,7 @@ impl<'a> From<(&mut App, &Runtime)> for InfoLine<'a> {
             if search_ref.has_history() && search_ref.selected() != None {
                 sign.push(Span::from(format!(
                     "[{}/{}] ",
-                    search_ref.selected().unwrap(),
+                    search_ref.selected().unwrap() + 1,
                     search_ref.indicates().len()
                 )));
             }
