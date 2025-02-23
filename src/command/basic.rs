@@ -16,7 +16,31 @@ pub async fn change_insert(
     cursor_move: CursorMoveType
 ) -> AppResult<bool>
 {
-    // TODO: add check for mark point
+    let mark = app.editor_state.mark();
+    loop {
+        if mark.is_some() {
+            let mut start = mark.unwrap();
+            let mut end = app.editor_state.cursor();
+            cursor_compare_swap(&mut start, &mut end);
+
+            let cursor_after = match cursor_move {
+                CursorMoveType::Beg => start,
+                CursorMoveType::End => end,
+                CursorMoveType::Num(_) => {
+                    *app.editor_state.mark_mut() = None;
+                    break;
+                },
+            };
+
+            *app.editor_state.cursor_mut() = cursor_after;
+            *app.editor_state.mark_mut() = None;
+            app.get_modal().switch_insert();
+            return Ok(false)
+        }
+
+        break;
+    }
+
     move_cursor(app, true, cursor_move).await?;
 
     app.get_modal().switch_insert();
@@ -206,6 +230,7 @@ pub async fn delete(app: &mut App, key: Option<KeyCode>) -> AppResult<bool> {
 
                 app.file_state.modify_lines(start.1, end.1, vec![new_line]).await?;
                 *state.cursor_mut() = start;
+                *state.mark_mut() = None;
 
                 return Ok(true)
             },

@@ -181,13 +181,24 @@ impl Editor {
         let mut cursor_end = state.mark().unwrap();
         cursor_compare_swap(&mut cursor_start, &mut cursor_end);
 
-        if y < cursor_start.1 || y > cursor_end.1 ||
-            x < cursor_start.0 || x >= cursor_end.0
-        {
-            return false
+        // Check vertical position
+        if cursor_start.1 != cursor_end.1 {
+            if y > cursor_start.1 && y < cursor_end.1 {
+                return true
+            }
+            
+            if y == cursor_start.1 && x >= cursor_start.0 {
+                return true
+            }
+
+            if y == cursor_end.1 && x < cursor_end.0 {
+                return true
+            }
+        } else if y == cursor_start.1 && x >= cursor_start.0 && x < cursor_end.0 {
+            return true
         }
 
-        true
+        false
     }
 
     fn is_cursor(&self, x: u16, y: usize, state: &EditorState) -> bool {
@@ -320,7 +331,7 @@ impl StatefulWidget for Editor {
 
                         // Cursor
                         if self.is_cursor(current_length, file_line, state) {
-                            self.make_cursor(point, false);
+                            self.make_cursor(point, state.mark_point.is_some());
                             break;
                         }
 

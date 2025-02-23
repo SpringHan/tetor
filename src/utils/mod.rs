@@ -7,6 +7,7 @@ where T: PartialEq + PartialOrd + Copy
 {
     if small.1 > big.1 {
         swap(small, big);
+        return ()
     }
 
     if small.1 == big.1 && small.0 > big.0 {

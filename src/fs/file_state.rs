@@ -240,7 +240,7 @@ impl FileState {
         &mut self,
         from: u16,
         to: u16,
-        mut lines: Vec<String>
+        lines: Vec<String>
     ) -> AppResult<()>
     {
         let (from, to) = (from as usize, to as usize);
@@ -254,42 +254,7 @@ impl FileState {
             )
         }
 
-        if lines.is_empty() {
-            for i in from..=to {
-                file_lines.remove(i);
-            }
-
-            return Ok(())
-        }
-
-
-        // Simply replace the original lines
-        for i in from..=to {
-            if i >= file_lines.len() {
-                // file_lines.push(highlighted_lines[i - from].to_owned());
-                file_lines.push(Self::pop_first(&mut lines));
-                continue;
-            }
-
-            if i - from >= lines.len() {
-                file_lines.remove(i);
-                continue;
-            }
-
-            // file_lines[i] = highlighted_lines[i - from].to_owned();
-            file_lines[i] = Self::pop_first(&mut lines);
-        }
-
-        if !lines.is_empty() {
-            for line in lines.into_iter() {
-                if to == file_lines.len() - 1 {
-                    file_lines.push(line);
-                    continue;
-                }
-
-                file_lines.insert(to + 1, line);
-            }
-        }
+        file_lines.splice(from..=to, lines);
 
         self.file_modify().await;
 
@@ -309,12 +274,6 @@ impl FileState {
         *self.file_modified.lock().await = false;
 
         Ok(())
-    }
-
-    fn pop_first(_vec: &mut Vec<String>) -> String {
-        let element = _vec[0].to_owned();
-        _vec.remove(0);
-        element
     }
 
     fn get_absolute(mut path: String) -> PathBuf {
