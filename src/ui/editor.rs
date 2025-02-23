@@ -190,6 +190,12 @@ impl Editor {
         true
     }
 
+    fn is_cursor(&self, x: u16, y: usize, state: &EditorState) -> bool {
+        self.render_cursor &&
+            state.cursor_pos.0 == x &&
+            state.cursor_pos.1 == y as u16
+    }
+
     fn color_reverse(&self, buf: &mut Buffer, style: Style, x: u16, y: u16) {
         let point_buf = buf.get_mut(x, y);
 
@@ -199,6 +205,14 @@ impl Editor {
             Color::White
         };
         point_buf.fg = self.background_color;
+    }
+
+    fn make_cursor(&self, point: &mut ratatui::buffer::Cell, black_cursor: bool) {
+        if black_cursor {
+            point.set_fg(Color::White).set_bg(Color::Black);
+        } else {
+            point.set_fg(self.background_color).set_bg(Color::White);
+        }
     }
 }
 
@@ -244,15 +258,25 @@ impl StatefulWidget for Editor {
 
             let mut current_length = 0; // Same as the value of state.cursor_pos.0
             let mut buf_x = linenr_width as u16 + 2; // Current horizontal position in buffer
+            let mut linenr_string = (file_line + 1).to_string();
             let linenr_idx = (linenr_width - Self::nr_length(file_line + 1)) as u16;
 
-            // Render line number & delimiter
-            buf.set_string(
-                linenr_idx as u16,
-                buf_y,
-                (file_line + 1).to_string(),
-                Style::default()
-            );
+            // Render line number
+            for x in 0..buf_x {
+                if state.cursor_pos.1 == file_line as u16 {
+                    buf.get_mut(x, buf_y)
+                        .set_fg(Color::Black)
+                        .set_bg(Color::White);
+                }
+
+                if x < linenr_idx {
+                    continue;
+                }
+
+                if !linenr_string.is_empty() {
+                    buf.get_mut(x, buf_y).set_char(linenr_string.remove(0));
+                }
+            }
 
             // Render delimiter between line number & content
             buf.get_mut(buf_x, buf_y).set_symbol("|");
@@ -271,22 +295,13 @@ impl StatefulWidget for Editor {
                         continue;
                     }
 
-                    let point_buf = buf.get_mut(buf_x, buf_y);
+                    // Render content
+                    let point = buf.get_mut(buf_x, buf_y);
                     if _char != '\n' && _char != '\t' {
-                        point_buf.set_char(_char);
+                        point.set_char(_char);
                     }
 
                     loop {
-                        // Cursor
-                        if self.render_cursor &&
-                            state.cursor_pos.0 == current_length &&
-                            state.cursor_pos.1 == file_line as u16
-                        {
-                            point_buf.bg = Color::White;
-                            point_buf.fg = self.background_color;
-                            break;
-                        }
-
                         // Search indicates
                         if Self::within_mark(state, current_length, file_line as u16) ||
                             indicates.indicates_find((
@@ -294,11 +309,22 @@ impl StatefulWidget for Editor {
                                 file_line as u16
                             ))
                         {
+                            if self.is_cursor(current_length, file_line, state) {
+                                self.make_cursor(point, true);
+                                break;
+                            }
+
                             self.color_reverse(buf, *style, buf_x, buf_y);
                             break;
                         }
 
-                        point_buf.set_style(*style);
+                        // Cursor
+                        if self.is_cursor(current_length, file_line, state) {
+                            self.make_cursor(point, false);
+                            break;
+                        }
+
+                        point.set_style(*style);
                         break;
                     }
 
