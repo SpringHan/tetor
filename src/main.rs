@@ -36,14 +36,8 @@ fn main() -> AppResult<()> {
     let backend = CrosstermBackend::new(stderr());
     let mut terminal = Terminal::new(backend)?;
 
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 2 {
-        return Err(
-            ErrorType::Specific(
-                String::from("Wrong arguments for this app!")
-            ).pack()
-        )
-    }
+    let mut args: Vec<String> = std::env::args().collect();
+    handle_cli_args(&mut args)?;
 
     let mut app = App::new();
     let rt = Runtime::new().unwrap();
@@ -87,6 +81,31 @@ fn main() -> AppResult<()> {
 
     execute!(stderr(), LeaveAlternateScreen)?;
     disable_raw_mode()?;
+
+    Ok(())
+}
+
+// TODO: Is this necessary?
+fn handle_cli_args(args: &mut Vec<String>) -> AppResult<()> {
+    let err = ErrorType::Specific(
+        String::from("Wrong arguments for this app!")
+    ).pack();
+
+    if args.len() < 2 {
+        return Err(err)
+    }
+
+    loop {
+        if args.len() == 0 {
+            return Err(err)
+        }
+
+        if args[0] == "tetor" {
+            break;
+        }
+
+        args.remove(0);
+    }
 
     Ok(())
 }
