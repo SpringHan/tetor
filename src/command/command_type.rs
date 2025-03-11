@@ -1,6 +1,6 @@
 // Command
 
-use crossterm::event::KeyCode;
+use ratatui::crossterm::event::KeyCode;
 
 use crate::{app::App, error::AppResult};
 

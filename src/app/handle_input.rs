@@ -1,7 +1,7 @@
 // Handle Input
 
-use crossterm::event::KeyCode;
 use tokio::runtime::Runtime;
+use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     command::{backward_char, insert_char, Command, CommandPrior},

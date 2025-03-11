@@ -9,20 +9,20 @@ mod command;
 use std::time::Duration;
 use std::io::stderr;
 
-use crossterm::event::{self, KeyEventKind};
 use ratatui::{
     Terminal,
-    backend::CrosstermBackend
-};
-
-use crossterm::{
-    execute,
-    event::poll,
-    terminal::{
-        enable_raw_mode,
-        disable_raw_mode,
-        EnterAlternateScreen,
-        LeaveAlternateScreen
+    backend::CrosstermBackend,
+    crossterm::{
+        execute,
+        event::poll,
+        cursor::{Hide, Show},
+        event::{self, KeyEventKind},
+        terminal::{
+            enable_raw_mode,
+            disable_raw_mode,
+            EnterAlternateScreen,
+            LeaveAlternateScreen
+        }
     }
 };
 
@@ -45,7 +45,7 @@ fn main() -> AppResult<()> {
     rt.block_on(app.init_app(args[1].to_owned()))?;
 
     enable_raw_mode()?;
-    execute!(stderr(), EnterAlternateScreen)?;
+    execute!(stderr(), EnterAlternateScreen, Hide)?;
 
     loop {
         terminal.draw(|frame| {
@@ -79,7 +79,7 @@ fn main() -> AppResult<()> {
         }
     }
 
-    execute!(stderr(), LeaveAlternateScreen)?;
+    execute!(stderr(), LeaveAlternateScreen, Show)?;
     disable_raw_mode()?;
 
     Ok(())

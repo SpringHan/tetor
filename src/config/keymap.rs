@@ -2,13 +2,13 @@
 
 use std::collections::HashMap;
 
-use crossterm::event::KeyCode;
 use toml_edit::DocumentMut;
+use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     command::{Command, CursorMoveType},
+    error::{AppResult, ErrorType},
     config_throw_error,
-    error::{AppResult, ErrorType}
 };
 
 /// The keymap for storing normal modal keybindings.

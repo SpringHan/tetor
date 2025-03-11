@@ -4,18 +4,20 @@ mod handle_input;
 mod search;
 
 use std::sync::Arc;
+
 use tokio::sync::Mutex;
+use ratatui::crossterm::event;
 
 use crate::{
-    command::{Command, CommandPrior},
     config::{init_config, AppOption, Keymap},
     error::{AppError, AppResult, ErrorType},
+    command::{Command, CommandPrior},
+    ui::{CommandEdit, EditorState},
     fs::FileState,
-    ui::{CommandEdit, EditorState}
 };
 
-pub use handle_input::handle_input;
 pub use search::SearchIndicates;
+pub use handle_input::handle_input;
 
 #[derive(Debug)]
 pub struct App {
@@ -72,7 +74,7 @@ impl App {
         &mut self.editor_state.modal
     }
 
-    pub fn get_command(&self, key: crossterm::event::KeyCode) -> Option<Command> {
+    pub fn get_command(&self, key: event::KeyCode) -> Option<Command> {
         self.keymap.keymap().get(&key).cloned()
     }
 
